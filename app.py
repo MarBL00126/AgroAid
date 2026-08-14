@@ -33,6 +33,8 @@ from io import BytesIO
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Optional
+import asyncio
+from contextlib import asynccontextmanager
 
 import psycopg2
 from fastapi import FastAPI, HTTPException
@@ -889,12 +891,15 @@ def _sync_init() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _sync_init()
-    yield
+    # Lanza la inicialización en un hilo secundario para NO bloquear el event loop.
+    # Uvicorn abrirá el puerto inmediatamente.
+    asyncio.create_task(asyncio.to_thread(_sync_init))
+    
+    yield  # La app inicia y Render detecta el puerto abierto de inmediato
+    
     if _conn:
         _conn.close()
     logger.info("AgroSafety API apagada")
-
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(
