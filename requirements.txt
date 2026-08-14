@@ -1,0 +1,35 @@
+# AgroAid / AgroSafety — Python dependencies
+# Python 3.10+
+# Generated from app.py imports
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+
+# ── Environment & config ──────────────────────────────────────────────────────
+python-dotenv>=1.0.1
+
+# ── Database ──────────────────────────────────────────────────────────────────
+psycopg2-binary>=2.9.10
+
+# ── PDF report generation ─────────────────────────────────────────────────────
+reportlab>=4.2.5
+
+# ── LangChain core ────────────────────────────────────────────────────────────
+langchain>=0.3.25
+langchain-core>=0.3.55
+langchain-community>=0.3.23
+langchain-text-splitters>=0.3.8
+
+# ── LangChain integrations ────────────────────────────────────────────────────
+langchain-openai>=0.3.16
+langchain-chroma>=0.2.4
+
+# ── Vector store ──────────────────────────────────────────────────────────────
+chromadb>=0.6.3
+
+# ── OpenAI ────────────────────────────────────────────────────────────────────
+openai>=1.79.0
+
+# ── PDF loader (used by PyPDFLoader) ─────────────────────────────────────────
+pypdf>=5.5.0
