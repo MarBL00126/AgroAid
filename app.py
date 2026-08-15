@@ -832,23 +832,9 @@ def _sync_init() -> None:
         logger.error("OPENAI_API_KEY no está definida. La API no podrá responder consultas.")
         return
 
-    # Load PDFs
-    pdf_folder = os.environ.get("PDF_FOLDER", "data")
-    documents = []
-    if pathlib.Path(pdf_folder).is_dir():
-        for fname in os.listdir(pdf_folder):
-            if fname.endswith(".pdf"):
-                try:
-                    loader = PyPDFLoader(os.path.join(pdf_folder, fname))
-                    docs = loader.load()
-                    for d in docs:
-                        d.metadata["source_file"] = fname
-                    documents.extend(docs)
-                except Exception as exc:
-                    logger.warning("No se pudo cargar %s: %s", fname, exc)
-    logger.info("Documentos cargados: %d páginas", len(documents))
-
-    # Vector store — reuse existing collection if already indexed
+    # Vector store — reuse existing collection si ya está indexada.
+    # OJO: si CHROMA_DIR no vive en un disco persistente, esto arranca
+    # en 0 en cada deploy/restart y vuelve a indexar todo de nuevo.
     embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
     persist_dir = os.environ.get("CHROMA_DIR", "db_agro_docs")
     vector_store = Chroma(
@@ -857,21 +843,58 @@ def _sync_init() -> None:
         persist_directory=persist_dir,
     )
     existing_count = vector_store._collection.count()
-    if existing_count == 0 and documents:
-        splits = RecursiveCharacterTextSplitter(
-            chunk_size=1200, chunk_overlap=200, add_start_index=True
-        ).split_documents(documents)
-        batch_size = 5000
-        for start in range(0, len(splits), batch_size):
-            batch = splits[start:start + batch_size]
-            vector_store.add_documents(batch)
-            logger.info(
-            "Indexados %d de %d chunks",
-            min(start + batch_size, len(splits)),
-            len(splits),
-        )
+    force_reindex = os.environ.get("FORCE_REINDEX", "").lower() in ("1", "true", "yes")
+
+    if existing_count > 0 and not force_reindex:
+        logger.info("Usando vector store existente (%d chunks). Salteando reindexado.", existing_count)
     else:
-        logger.info("Usando vector store existente (%d chunks)", existing_count)
+        pdf_folder = os.environ.get("PDF_FOLDER", "data")
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1200, chunk_overlap=200, add_start_index=True
+        )
+        batch_size = 500  # chunks por llamada a add_documents, no páginas
+        pending: list = []
+        total_pages = 0
+        total_chunks = 0
+
+        def _flush(pending_batch: list) -> None:
+            nonlocal total_chunks
+            if not pending_batch:
+                return
+            vector_store.add_documents(pending_batch)
+            total_chunks += len(pending_batch)
+            logger.info("Indexados %d chunks (acumulado)", total_chunks)
+
+        if pathlib.Path(pdf_folder).is_dir():
+            pdf_files = sorted(f for f in os.listdir(pdf_folder) if f.endswith(".pdf"))
+            for fname in pdf_files:
+                try:
+                    loader = PyPDFLoader(os.path.join(pdf_folder, fname))
+                    docs = loader.load()  # solo las páginas de ESTE archivo en memoria
+                    for d in docs:
+                        d.metadata["source_file"] = fname
+                    total_pages += len(docs)
+
+                    file_splits = splitter.split_documents(docs)
+                    del docs  # liberar páginas crudas ni bien tenemos los chunks
+
+                    pending.extend(file_splits)
+                    del file_splits
+
+                    while len(pending) >= batch_size:
+                        _flush(pending[:batch_size])
+                        pending = pending[batch_size:]
+
+                    logger.info("Procesado %s (%d páginas acumuladas)", fname, total_pages)
+                except Exception as exc:
+                    logger.warning("No se pudo cargar %s: %s", fname, exc)
+
+            _flush(pending)  # lo que quedó sin llegar a completar un batch
+
+        logger.info(
+            "Documentos cargados: %d páginas → %d chunks indexados",
+            total_pages, total_chunks,
+        )
 
     _retriever = vector_store.as_retriever(
         search_type="mmr", search_kwargs={"k": 8, "fetch_k": 20}
