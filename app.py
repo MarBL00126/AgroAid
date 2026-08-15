@@ -852,18 +852,44 @@ def _sync_init() -> None:
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1200, chunk_overlap=200, add_start_index=True
         )
-        batch_size = 500  # chunks por llamada a add_documents, no páginas
+        batch_size = 100  # chunks por llamada a add_documents (cuota free tier: 100 req/min)
         pending: list = []
         total_pages = 0
         total_chunks = 0
 
-        def _flush(pending_batch: list) -> None:
+        def _extract_retry_delay(exc: Exception, default: float = 30.0) -> float:
+            match = re.search(r"retryDelay['\"]?\s*:\s*['\"](\d+(?:\.\d+)?)s", str(exc))
+            return float(match.group(1)) if match else default
+
+        def _flush(pending_batch: list, max_retries: int = 5) -> bool:
+            """Intenta indexar un batch. Devuelve True si tuvo éxito.
+            Ante 429/RESOURCE_EXHAUSTED, espera el retryDelay que sugiere
+            Gemini y reintenta el MISMO batch, en vez de descartarlo."""
             nonlocal total_chunks
             if not pending_batch:
-                return
-            vector_store.add_documents(pending_batch)
-            total_chunks += len(pending_batch)
-            logger.info("Indexados %d chunks (acumulado)", total_chunks)
+                return True
+            for attempt in range(1, max_retries + 1):
+                try:
+                    vector_store.add_documents(pending_batch)
+                    total_chunks += len(pending_batch)
+                    logger.info("Indexados %d chunks (acumulado)", total_chunks)
+                    return True
+                except Exception as exc:
+                    is_quota = "RESOURCE_EXHAUSTED" in str(exc) or "429" in str(exc)
+                    if is_quota and attempt < max_retries:
+                        delay = _extract_retry_delay(exc)
+                        logger.warning(
+                            "Cuota de embeddings agotada (intento %d/%d). Esperando %.0fs...",
+                            attempt, max_retries, delay,
+                        )
+                        time.sleep(delay)
+                        continue
+                    logger.warning(
+                        "No se pudo indexar un batch de %d chunks tras %d intentos: %s",
+                        len(pending_batch), attempt, exc,
+                    )
+                    return False
+            return False
 
         if pathlib.Path(pdf_folder).is_dir():
             pdf_files = sorted(f for f in os.listdir(pdf_folder) if f.endswith(".pdf"))
@@ -880,14 +906,26 @@ def _sync_init() -> None:
 
                     pending.extend(file_splits)
                     del file_splits
-
-                    while len(pending) >= batch_size:
-                        _flush(pending[:batch_size])
-                        pending = pending[batch_size:]
-
-                    logger.info("Procesado %s (%d páginas acumuladas)", fname, total_pages)
                 except Exception as exc:
                     logger.warning("No se pudo cargar %s: %s", fname, exc)
+                    continue
+
+                # El flush va AFUERA del try de carga: si falla por cuota,
+                # no se pierde el batch, y no queremos que un error de
+                # embeddings se confunda con un PDF corrupto.
+                while len(pending) >= batch_size:
+                    batch = pending[:batch_size]
+                    if _flush(batch):
+                        pending = pending[batch_size:]
+                    else:
+                        # Se agotaron los reintentos: cortamos la indexación
+                        # acá en vez de seguir machacando la API en cada
+                        # archivo siguiente.
+                        logger.error("Indexación interrumpida por errores persistentes de cuota/API.")
+                        pending = []
+                        break
+
+                logger.info("Procesado %s (%d páginas acumuladas)", fname, total_pages)
 
             _flush(pending)  # lo que quedó sin llegar a completar un batch
 
