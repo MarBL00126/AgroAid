@@ -426,6 +426,26 @@ def registrar_metrica(cid, se_abstuvo, riesgo, confianza, evidencia, iteraciones
 
 
 # ── LangChain helpers ─────────────────────────────────────────────────────────
+def _extract_text(content) -> str:
+    """Normaliza el .content de un AIMessage a un string plano.
+    Algunos modelos (p.ej. gemini-3.6-flash) devuelven una lista de
+    bloques ([{"type": "text", "text": "..."}]) en vez de un string,
+    a diferencia de gpt-4o-mini / gemini-2.5-flash."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if text:
+                    parts.append(str(text))
+        return "\n".join(parts)
+    return "" if content is None else str(content)
+
+
 def _parse_json_safe(text: str, default: dict) -> dict:
     try:
         m = re.search(r"\{.*\}", text, re.DOTALL)
@@ -657,7 +677,7 @@ def _run_iteration(session: SessionState) -> dict:
     historial_str = "\n".join(f"- {s}" for s in session.historial_consulta)
     try:
         resp = _safety_chain.invoke(historial_str)
-        ev = _normalize_eval(_parse_json_safe(resp.content, _DEFAULT_EVAL.copy()), historial_str, session)
+        ev = _normalize_eval(_parse_json_safe(_extract_text(resp.content), _DEFAULT_EVAL.copy()), historial_str, session)
     except Exception as exc:
         logger.error("Safety chain error: %s", exc)
         ev = _normalize_eval(_DEFAULT_EVAL.copy(), historial_str, session)
@@ -698,7 +718,7 @@ def _finalize(session: SessionState) -> None:
         | _llm
     )
     try:
-        eval_text = final_chain.invoke(all_info).content
+        eval_text = _extract_text(final_chain.invoke(all_info).content)
     except Exception as exc:
         logger.error("Final eval error: %s", exc)
         eval_text = "No se pudo generar la evaluación final."
@@ -726,7 +746,7 @@ def _finalize(session: SessionState) -> None:
                 "context": contexto,
             }
         )
-        verificacion = _parse_json_safe(ev_resp.content, default_fail)
+        verificacion = _parse_json_safe(_extract_text(ev_resp.content), default_fail)
     except Exception as exc:
         logger.error("Evidence checker error: %s", exc)
         verificacion = default_fail
