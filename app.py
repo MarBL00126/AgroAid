@@ -10,7 +10,7 @@ para que cualquier frontend pueda consumirlo.
 Uso:
     pip install fastapi "uvicorn[standard]"
     # Variables de entorno:
-    #   OPENAI_API_KEY   — requerida
+    #   GOOGLE_API_KEY   — requerida (clave de Gemini / Google AI Studio)
     #   DB_PASSWORD      — contraseña PostgreSQL
     #   DB_HOST          — default: localhost
     #   DB_NAME          — default: agrosafety
@@ -47,7 +47,7 @@ from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 # ── Load .env if available ────────────────────────────────────────────────────
@@ -827,18 +827,18 @@ def _sync_init() -> None:
 
     _connect_db()
 
-    api_key = os.environ.get("OPENAI_API_KEY", "")
+    api_key = os.environ.get("GOOGLE_API_KEY", "")
     if not api_key:
-        logger.error("OPENAI_API_KEY no está definida. La API no podrá responder consultas.")
+        logger.error("GOOGLE_API_KEY no está definida. La API no podrá responder consultas.")
         return
 
     # Vector store — reuse existing collection si ya está indexada.
     # OJO: si CHROMA_DIR no vive en un disco persistente, esto arranca
     # en 0 en cada deploy/restart y vuelve a indexar todo de nuevo.
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
     persist_dir = os.environ.get("CHROMA_DIR", "db_agro_docs")
     vector_store = Chroma(
-        collection_name="agro_epof_collection",
+        collection_name="agro_epof_collection_gemini",
         embedding_function=embeddings,
         persist_directory=persist_dir,
     )
@@ -899,15 +899,15 @@ def _sync_init() -> None:
     _retriever = vector_store.as_retriever(
         search_type="mmr", search_kwargs={"k": 8, "fetch_k": 20}
     )
-    _llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.2)
+    _llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
     _safety_chain = (
         {"context": _retriever, "agro_history": RunnablePassthrough()}
         | ChatPromptTemplate.from_template(SAFETY_TMPL)
-        | ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+        | ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0)
     )
     _evidence_chain = (
         ChatPromptTemplate.from_template(EVIDENCE_TMPL)
-        | ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+        | ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0)
     )
     logger.info("✅ AgroSafety API lista")
 
@@ -967,7 +967,7 @@ async def health():
 async def iniciar_consulta(req: ConsultaRequest):
     if _retriever is None or _safety_chain is None:
         raise HTTPException(
-            503, "Sistema no inicializado. Verificar OPENAI_API_KEY y reiniciar el servidor."
+            503, "Sistema no inicializado. Verificar GOOGLE_API_KEY y reiniciar el servidor."
         )
     consulta_id = crear_consulta(req.consulta_inicial)
     session = SessionState(
