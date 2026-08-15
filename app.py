@@ -255,10 +255,76 @@ def _connect_db() -> None:
         )
         _cur = _conn.cursor()
         logger.info("✅ PostgreSQL conectado")
+        _ensure_schema()
     except Exception as exc:
         logger.warning("DB no disponible — modo fallback en memoria: %s", exc)
         _conn = None
         _cur = None
+
+
+def _ensure_schema() -> None:
+    """Crea las tablas si no existen. Idempotente: seguro correrlo en cada arranque."""
+    if not (_cur and _conn):
+        return
+    statements = [
+        """CREATE TABLE IF NOT EXISTS consultas (
+               id               SERIAL PRIMARY KEY,
+               consulta_inicial TEXT NOT NULL,
+               created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+           )""",
+        """CREATE TABLE IF NOT EXISTS respuestas (
+               id              SERIAL PRIMARY KEY,
+               consulta_id     INTEGER NOT NULL REFERENCES consultas(id) ON DELETE CASCADE,
+               iteracion       INTEGER NOT NULL,
+               preguntas       JSONB,
+               respuesta       TEXT,
+               confianza_antes INTEGER,
+               riesgo_antes    TEXT,
+               created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+           )""",
+        """CREATE TABLE IF NOT EXISTS auditoria (
+               id          SERIAL PRIMARY KEY,
+               consulta_id INTEGER NOT NULL REFERENCES consultas(id) ON DELETE CASCADE,
+               iteracion   INTEGER,
+               accion      TEXT NOT NULL,
+               detalle     JSONB,
+               created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+           )""",
+        """CREATE TABLE IF NOT EXISTS evaluaciones_finales (
+               id                     SERIAL PRIMARY KEY,
+               consulta_id            INTEGER NOT NULL REFERENCES consultas(id) ON DELETE CASCADE,
+               evaluacion_final       TEXT,
+               iteraciones_realizadas INTEGER,
+               abstuvo                BOOLEAN NOT NULL DEFAULT FALSE,
+               created_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+           )""",
+        """CREATE TABLE IF NOT EXISTS metricas_seguridad (
+               id                   SERIAL PRIMARY KEY,
+               consulta_id          INTEGER NOT NULL REFERENCES consultas(id) ON DELETE CASCADE,
+               se_abstuvo           BOOLEAN,
+               nivel_riesgo         TEXT,
+               confianza_final      INTEGER,
+               evidencia_suficiente BOOLEAN,
+               iteraciones          INTEGER,
+               duracion_seg         DOUBLE PRECISION,
+               created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+           )""",
+        "CREATE INDEX IF NOT EXISTS idx_respuestas_consulta_id ON respuestas(consulta_id)",
+        "CREATE INDEX IF NOT EXISTS idx_auditoria_consulta_id ON auditoria(consulta_id)",
+        "CREATE INDEX IF NOT EXISTS idx_evaluaciones_finales_consulta_id ON evaluaciones_finales(consulta_id)",
+        "CREATE INDEX IF NOT EXISTS idx_metricas_seguridad_consulta_id ON metricas_seguridad(consulta_id)",
+    ]
+    try:
+        for stmt in statements:
+            _cur.execute(stmt)
+        _conn.commit()
+        logger.info("✅ Schema verificado/creado (consultas, respuestas, auditoria, evaluaciones_finales, metricas_seguridad)")
+    except Exception as exc:
+        try:
+            _conn.rollback()
+        except Exception:
+            pass
+        logger.error("No se pudo crear/verificar el schema: %s", exc)
 
 
 def _db_exec(sql: str, params: tuple) -> None:
@@ -529,6 +595,16 @@ def _filter_followup_questions(
         filtered.append(question)
         if len(filtered) == 3:
             break
+
+    # Último recurso: si el filtro anti-repetidos dejó la lista vacía
+    # (todas las preguntas de dominio ya se hicieron antes), nunca
+    # dejamos al usuario sin nada que responder mientras falte evidencia.
+    if not filtered:
+        filtered.append(
+            "Podes darnos mas detalles especificos de tu situacion (ubicacion, "
+            "producto/tarea exacta, cantidades, fechas) que todavia no hayas mencionado?"
+        )
+
     return filtered
 
 
@@ -937,15 +1013,15 @@ def _sync_init() -> None:
     _retriever = vector_store.as_retriever(
         search_type="mmr", search_kwargs={"k": 8, "fetch_k": 20}
     )
-    _llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
+    _llm = ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.2)
     _safety_chain = (
         {"context": _retriever, "agro_history": RunnablePassthrough()}
         | ChatPromptTemplate.from_template(SAFETY_TMPL)
-        | ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0)
+        | ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.0)
     )
     _evidence_chain = (
         ChatPromptTemplate.from_template(EVIDENCE_TMPL)
-        | ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.0)
+        | ChatGoogleGenerativeAI(model="gemini-3.6-flash", temperature=0.0)
     )
     logger.info("✅ AgroSafety API lista")
 
