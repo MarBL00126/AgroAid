@@ -699,7 +699,6 @@ def _run_iteration(session: SessionState) -> dict:
         (
             session.confianza_final >= session.umbral_confianza
             and session.evidencia_final
-            and not session.se_abstuvo_final
         )
         or session.iteracion_actual >= session.max_iteraciones
     )
