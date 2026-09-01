@@ -1,4 +1,4 @@
-﻿-- AgroSafety / AgroAid - PostgreSQL schema
+-- AgroSafety / AgroAid - PostgreSQL schema
 -- Idempotente: se puede volver a correr sin riesgo.
 
 CREATE TABLE IF NOT EXISTS tenants (

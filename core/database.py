@@ -103,7 +103,7 @@ def ensure_schema() -> None:
     if not schema_path.exists():
         raise RuntimeError(f"schema.sql no encontrado en {schema_path}")
 
-    raw = schema_path.read_text(encoding="utf-8")
+    raw = schema_path.read_text(encoding="utf-8-sig")  # utf-8-sig strips BOM if present
     stmts = [s.strip() for s in raw.split(";") if s.strip()]
 
     with get_conn() as conn:
