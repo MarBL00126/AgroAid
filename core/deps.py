@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from datetime import datetime, timezone
 from typing import Any
 
@@ -35,6 +36,18 @@ def get_current_user(
     api_key: str | None = Header(default=None, alias="X-API-Key"),
 ) -> dict:
     if api_key:
+        # Fast path: match PUBLIC_API_KEY directly without DB lookup
+        public_key = os.environ.get("PUBLIC_API_KEY", "")
+        if public_key and api_key == public_key:
+            return {
+                "id": None,
+                "username": "public",
+                "email": None,
+                "role": "user",
+                "tenant_id": 1,
+                "auth_type": "public_key",
+            }
+
         key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
 
         try:

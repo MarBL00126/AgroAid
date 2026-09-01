@@ -1,5 +1,5 @@
--- AgroSafety / AgroAid - PostgreSQL schema
--- Seguro para volver a correr: usa IF NOT EXISTS / ADD COLUMN IF NOT EXISTS.
+﻿-- AgroSafety / AgroAid - PostgreSQL schema
+-- Idempotente: se puede volver a correr sin riesgo.
 
 CREATE TABLE IF NOT EXISTS tenants (
     id          SERIAL PRIMARY KEY,
@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS auditoria (
     iteracion    INTEGER,
     accion       TEXT NOT NULL,
     detalle      JSONB,
+    entry_hash   TEXT,
+    prev_hash    TEXT,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -83,6 +85,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at  TIMESTAMPTZ
 );
+
 CREATE TABLE IF NOT EXISTS whatsapp_contacts (
     id           SERIAL PRIMARY KEY,
     phone_number VARCHAR(30) NOT NULL,
@@ -91,6 +94,7 @@ CREATE TABLE IF NOT EXISTS whatsapp_contacts (
     active       BOOLEAN DEFAULT TRUE,
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
 CREATE TABLE IF NOT EXISTS whatsapp_sessions (
     phone        VARCHAR(30) PRIMARY KEY,
     consulta_id  INTEGER REFERENCES consultas(id) ON DELETE SET NULL,
@@ -101,15 +105,45 @@ CREATE TABLE IF NOT EXISTS whatsapp_sessions (
     CONSTRAINT whatsapp_sessions_state_check
         CHECK (state IN ('idle', 'in_progress'))
 );
-CREATE TABLE webhooks (
-    id SERIAL PRIMARY KEY,
-    tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    url TEXT NOT NULL,
-    secret TEXT NOT NULL,
-    events TEXT[] NOT NULL DEFAULT '{}',
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+CREATE TABLE IF NOT EXISTS webhooks (
+    id         SERIAL PRIMARY KEY,
+    tenant_id  INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    url        TEXT NOT NULL,
+    secret     TEXT NOT NULL,
+    events     TEXT[] NOT NULL DEFAULT '{}',
+    is_active  BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS tenant_branding (
+    tenant_id     INTEGER PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+    logo_url      TEXT NOT NULL DEFAULT '',
+    primary_color TEXT NOT NULL DEFAULT '#16a34a',
+    accent_color  TEXT NOT NULL DEFAULT '#15803d',
+    app_name      TEXT NOT NULL DEFAULT 'AgroAid',
+    footer_text   TEXT NOT NULL DEFAULT 'AgroSafety - Hackathon Global South AI Safety 2026'
+);
+
+INSERT INTO tenant_branding (tenant_id)
+VALUES (1)
+ON CONFLICT (tenant_id) DO NOTHING;
+
+-- Columnas de migraciones (ADD COLUMN IF NOT EXISTS es idempotente)
+ALTER TABLE consultas            ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+ALTER TABLE users                ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+ALTER TABLE users                ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+ALTER TABLE users                ADD COLUMN IF NOT EXISTS whatsapp TEXT UNIQUE;
+ALTER TABLE respuestas           ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+ALTER TABLE auditoria            ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+ALTER TABLE auditoria            ADD COLUMN IF NOT EXISTS entry_hash TEXT;
+ALTER TABLE auditoria            ADD COLUMN IF NOT EXISTS prev_hash TEXT;
+ALTER TABLE evaluaciones_finales ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+ALTER TABLE evaluaciones_finales ADD COLUMN IF NOT EXISTS abstuvo BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE metricas_seguridad   ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+ALTER TABLE api_keys             ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+
+-- La view va DESPUES de los ALTER TABLE para que tenant_id ya exista en metricas_seguridad
 CREATE OR REPLACE VIEW historial_consultas AS
 SELECT
     c.id AS consulta_id,
@@ -126,35 +160,13 @@ FROM consultas c
 LEFT JOIN metricas_seguridad m
     ON m.consulta_id = c.id
    AND m.tenant_id = c.tenant_id;
-CREATE TABLE IF NOT EXISTS tenant_branding (
-    tenant_id     INTEGER PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
-    logo_url      TEXT NOT NULL DEFAULT '',
-    primary_color TEXT NOT NULL DEFAULT '#16a34a',
-    accent_color  TEXT NOT NULL DEFAULT '#15803d',
-    app_name      TEXT NOT NULL DEFAULT 'AgroAid',
-    footer_text   TEXT NOT NULL DEFAULT 'AgroSafety — Hackathon Global South AI Safety 2026'
-);
-INSERT INTO tenant_branding (tenant_id)
-VALUES (1)
-ON CONFLICT (tenant_id) DO NOTHING;
-ALTER TABLE consultas ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
-ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
-ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp TEXT UNIQUE;
-ALTER TABLE respuestas ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
-ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
-ALTER TABLE evaluaciones_finales ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
-ALTER TABLE evaluaciones_finales ADD COLUMN IF NOT EXISTS abstuvo BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE metricas_seguridad ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
-ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
-ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS entry_hash TEXT,ADD COLUMN IF NOT EXISTS prev_hash TEXT;
 
-CREATE INDEX IF NOT EXISTS idx_consultas_tenant_id ON consultas(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_respuestas_consulta_id ON respuestas(consulta_id);
-CREATE INDEX IF NOT EXISTS idx_auditoria_consulta_id ON auditoria(consulta_id);
+CREATE INDEX IF NOT EXISTS idx_consultas_tenant_id              ON consultas(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_respuestas_consulta_id           ON respuestas(consulta_id);
+CREATE INDEX IF NOT EXISTS idx_auditoria_consulta_id            ON auditoria(consulta_id);
 CREATE INDEX IF NOT EXISTS idx_evaluaciones_finales_consulta_id ON evaluaciones_finales(consulta_id);
-CREATE INDEX IF NOT EXISTS idx_metricas_seguridad_consulta_id ON metricas_seguridad(consulta_id);
-CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
-CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_consulta_id ON whatsapp_sessions(consulta_id);
-CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_tenant_id ON whatsapp_sessions(tenant_id);
-CREATE INDEX idx_webhooks_tenant_active ON webhooks(tenant_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_metricas_seguridad_consulta_id   ON metricas_seguridad(consulta_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash                ON api_keys(key_hash);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_consulta_id    ON whatsapp_sessions(consulta_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_tenant_id      ON whatsapp_sessions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_webhooks_tenant_active           ON webhooks(tenant_id, is_active);
