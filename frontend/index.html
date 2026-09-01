@@ -673,6 +673,15 @@ function authHeaders(extra) {
 }
 
 async function loadApiKey() {
+  // Server-configured key always takes priority
+  try {
+    const res = await fetch(`${API}/api/public-config`);
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.public_key) { apiKey = cfg.public_key; return; }
+    }
+  } catch (_) {}
+
   const params = new URLSearchParams(window.location.search);
   const urlKey = params.get("key");
   if (urlKey) {
@@ -684,13 +693,6 @@ async function loadApiKey() {
   }
   const stored = localStorage.getItem("apiKey");
   if (stored) { apiKey = stored; return; }
-  try {
-    const res = await fetch(`${API}/api/public-config`);
-    if (res.ok) {
-      const cfg = await res.json();
-      if (cfg.public_key) { apiKey = cfg.public_key; return; }
-    }
-  } catch (_) {}
   show("key-panel");
 }
 
