@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgroAid — Evaluador de seguridad agrícola</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --color-primary: #16a34a;
+      --color-accent: #15803d;
+    }
+    .btn-primary {
+      background-color: var(--color-primary);
+    }
+    .btn-primary:hover {
+      background-color: var(--color-accent);
+    }
+  </style>
+</head>
+<body class="bg-stone-50 text-stone-800 font-sans">
+
+  <!-- ── HERO ─────────────────────────────────────────────── -->
+  <section class="min-h-screen flex flex-col items-center justify-center px-6 py-16 text-center bg-gradient-to-b from-green-50 to-stone-50">
+    <div class="max-w-3xl">
+      <span class="inline-block mb-4 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold tracking-wide">
+        Hackathon Global South AI Safety 2026
+      </span>
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-stone-900 leading-tight mb-6">
+        Protegé cada consulta agrícola<br class="hidden sm:block" /> antes de que cause daño.
+      </h1>
+      <p class="text-lg sm:text-xl text-stone-600 mb-8">
+        AgroAid evalúa en tiempo real el riesgo de recomendaciones sobre
+        agroquímicos, clima, maquinaria, zoonosis y más — en español latinoamericano,
+        para productores rurales de alto riesgo.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="/" class="btn-primary text-white px-8 py-3 rounded-xl font-semibold text-lg transition-colors shadow-md">
+          Probá gratis →
+        </a>
+        <a href="/static/admin.html" class="bg-white border-2 border-green-600 text-green-700 px-8 py-3 rounded-xl font-semibold text-lg hover:bg-green-50 transition-colors">
+          Panel de administración
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CANALES ───────────────────────────────────────────── -->
+  <section class="py-20 px-6 bg-white">
+    <div class="max-w-5xl mx-auto">
+      <h2 class="text-3xl font-bold text-center text-stone-900 mb-4">Tres canales, un solo evaluador</h2>
+      <p class="text-center text-stone-500 mb-12">El productor consulta como le resulte más natural. AgroAid siempre evalúa el riesgo antes de responder.</p>
+      <div class="grid sm:grid-cols-3 gap-8">
+
+        <!-- Texto -->
+        <div class="rounded-2xl border border-stone-200 p-8 bg-stone-50 flex flex-col items-center text-center shadow-sm hover:shadow-md transition-shadow">
+          <div class="text-5xl mb-4">💬</div>
+          <h3 class="text-xl font-bold mb-2">Texto</h3>
+          <p class="text-stone-500 text-sm">
+            Escribí la consulta directamente desde el navegador o vía API. Respuesta evaluada en segundos.
+          </p>
+        </div>
+
+        <!-- Voz -->
+        <div class="rounded-2xl border border-stone-200 p-8 bg-stone-50 flex flex-col items-center text-center shadow-sm hover:shadow-md transition-shadow">
+          <div class="text-5xl mb-4">🎤</div>
+          <h3 class="text-xl font-bold mb-2">Voz</h3>
+          <p class="text-stone-500 text-sm">
+            Grabá un audio desde el celular. Whisper transcribe y el evaluador de seguridad responde.
+          </p>
+        </div>
+
+        <!-- Imagen -->
+        <div class="rounded-2xl border border-stone-200 p-8 bg-stone-50 flex flex-col items-center text-center shadow-sm hover:shadow-md transition-shadow">
+          <div class="text-5xl mb-4">📷</div>
+          <h3 class="text-xl font-bold mb-2">Imagen</h3>
+          <p class="text-stone-500 text-sm">
+            Fotografiá la etiqueta del producto. La IA extrae datos y evalúa dosis, EPP e intervalo de carencia.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DOMINIOS ──────────────────────────────────────────── -->
+  <section class="py-16 px-6 bg-green-50">
+    <div class="max-w-4xl mx-auto">
+      <h2 class="text-2xl font-bold text-center text-stone-900 mb-8">9 dominios de seguridad cubiertos</h2>
+      <div class="flex flex-wrap justify-center gap-3">
+        <span class="px-4 py-2 bg-green-100 text-green-800 rounded-full text-sm font-medium">☠️ Agroquímicos</span>
+        <span class="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">🌩️ Clima extremo</span>
+        <span class="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">🚜 Seguridad laboral</span>
+        <span class="px-4 py-2 bg-cyan-100 text-cyan-800 rounded-full text-sm font-medium">💧 Agua y contaminación</span>
+        <span class="px-4 py-2 bg-pink-100 text-pink-800 rounded-full text-sm font-medium">🐄 Zoonosis</span>
+        <span class="px-4 py-2 bg-lime-100 text-lime-800 rounded-full text-sm font-medium">🌿 Bioseguridad vegetal</span>
+        <span class="px-4 py-2 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">🌽 Seguridad alimentaria</span>
+        <span class="px-4 py-2 bg-red-100 text-red-800 rounded-full text-sm font-medium">🔥 Incendios rurales</span>
+        <span class="px-4 py-2 bg-stone-100 text-stone-800 rounded-full text-sm font-medium">🌱 Riego y suelo</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DEMO EN VIVO ──────────────────────────────────────── -->
+  <section class="py-20 px-6 bg-white" id="demo">
+    <div class="max-w-2xl mx-auto">
+      <h2 class="text-3xl font-bold text-center text-stone-900 mb-2">Probalo ahora</h2>
+      <p class="text-center text-stone-500 mb-8 text-sm">
+        Ingresá una consulta agrícola y tu API Key. Obtené una evaluación de riesgo instantánea.
+      </p>
+
+      <div class="bg-stone-50 rounded-2xl border border-stone-200 p-6 shadow-sm space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">API Key</label>
+          <input
+            id="demo-apikey"
+            type="password"
+            placeholder="ags_xxxxxxxxxxxxxxxxxxxx"
+            class="w-full border border-stone-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <p class="text-xs text-stone-400 mt-1">
+            Obtené tu API Key en el <a href="/static/admin.html" class="text-green-600 underline">panel de administración</a>.
+          </p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Consulta agrícola</label>
+          <textarea
+            id="demo-query"
+            rows="3"
+            placeholder="Ej: ¿Puedo aplicar glifosato hoy con viento de 20 km/h cerca de un canal de riego?"
+            class="w-full border border-stone-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+          ></textarea>
+        </div>
+
+        <button
+          id="demo-btn"
+          onclick="runDemo()"
+          class="btn-primary w-full text-white py-3 rounded-xl font-semibold text-sm transition-colors"
+        >
+          Evaluar riesgo
+        </button>
+
+        <div id="demo-result" class="hidden">
+          <div class="border-t border-stone-200 pt-4 mt-2 space-y-3">
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-medium text-stone-600">Nivel de riesgo:</span>
+              <span id="res-riesgo" class="px-3 py-1 rounded-full text-xs font-bold uppercase"></span>
+            </div>
+            <div class="flex items-center gap-3">
+              <span class="text-sm font-medium text-stone-600">Confianza:</span>
+              <span id="res-confianza" class="text-sm font-semibold text-stone-800"></span>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-stone-600 mb-1">Justificación:</p>
+              <p id="res-justificacion" class="text-sm text-stone-700 bg-stone-100 rounded-lg px-3 py-2"></p>
+            </div>
+            <div id="res-abstencion-box" class="hidden bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+              <p class="text-sm font-semibold text-red-700">⚠️ El sistema recomienda abstenerse de dar esta recomendación.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="demo-error" class="hidden bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700"></div>
+        <div id="demo-loading" class="hidden text-center py-2">
+          <span class="text-sm text-stone-400 animate-pulse">Evaluando riesgo...</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ────────────────────────────────────────────── -->
+  <footer class="py-10 px-6 bg-stone-900 text-stone-400 text-center text-sm">
+    <p class="font-semibold text-white mb-1">AgroAid</p>
+    <p>Hackathon Global South AI Safety 2026 — Track Latinoamérica</p>
+    <p class="mt-2">
+      <a href="/" class="text-green-400 hover:underline">App</a> ·
+      <a href="/static/admin.html" class="text-green-400 hover:underline">Admin</a> ·
+      <a href="/docs" class="text-green-400 hover:underline">API Docs</a>
+    </p>
+  </footer>
+
+  <script>
+    const RISK_COLORS = {
+      BAJO: "bg-green-100 text-green-800",
+      MEDIO: "bg-yellow-100 text-yellow-800",
+      ALTO: "bg-orange-100 text-orange-800",
+      CRITICO: "bg-red-100 text-red-800",
+    };
+
+    async function runDemo() {
+      const apiKey = document.getElementById("demo-apikey").value.trim();
+      const query = document.getElementById("demo-query").value.trim();
+      const resultBox = document.getElementById("demo-result");
+      const errorBox = document.getElementById("demo-error");
+      const loadingBox = document.getElementById("demo-loading");
+
+      resultBox.classList.add("hidden");
+      errorBox.classList.add("hidden");
+
+      if (!apiKey) {
+        errorBox.textContent = "Ingresá tu API Key para continuar.";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+      if (!query) {
+        errorBox.textContent = "Escribí una consulta agrícola.";
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      loadingBox.classList.remove("hidden");
+      document.getElementById("demo-btn").disabled = true;
+
+      try {
+        const resp = await fetch(
+          `/api/risk-score?q=${encodeURIComponent(query)}`,
+          { headers: { "X-API-Key": apiKey } }
+        );
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          throw new Error(data.detail || `Error ${resp.status}`);
+        }
+
+        const riesgo = (data.nivel_riesgo || "ALTO").toUpperCase();
+        const colorClass = RISK_COLORS[riesgo] || "bg-stone-100 text-stone-800";
+
+        document.getElementById("res-riesgo").textContent = riesgo;
+        document.getElementById("res-riesgo").className = `px-3 py-1 rounded-full text-xs font-bold uppercase ${colorClass}`;
+        document.getElementById("res-confianza").textContent = `${data.confianza ?? "—"}%`;
+        document.getElementById("res-justificacion").textContent = data.justificacion || "Sin justificación.";
+
+        const absBox = document.getElementById("res-abstencion-box");
+        if (data.debe_abstenerse) {
+          absBox.classList.remove("hidden");
+        } else {
+          absBox.classList.add("hidden");
+        }
+
+        resultBox.classList.remove("hidden");
+      } catch (err) {
+        errorBox.textContent = err.message || "Error al conectar con la API.";
+        errorBox.classList.remove("hidden");
+      } finally {
+        loadingBox.classList.add("hidden");
+        document.getElementById("demo-btn").disabled = false;
+      }
+    }
+
+    // Allow Enter key in textarea (Shift+Enter = newline, Enter = submit)
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("demo-query").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          runDemo();
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>

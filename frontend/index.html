@@ -1,255 +1,1884 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🌿🚜 AgroAid - Evaluacion Integral de Seguridad Agricola</title>
+  <link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#16a34a">
+
+  <title>AgroAid</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
-    .spinner { width:18px; height:18px; border:2.5px solid #d1fae5; border-top-color:#16a34a; border-radius:50%; animation:spin .75s linear infinite; flex-shrink:0; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    pre { white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+    :root {
+      --color-primary: #15803d;
+      --color-primary-dark: #166534;
+      --color-primary-light: #dcfce7;
+      --color-accent: #16a34a;
+      --color-text: #292524;
+      --color-muted: #78716c;
+      --color-border: #e7e5e4;
+      --color-background: #f5f5f4;
+      --color-surface: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      font-size: 16px;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--color-background);
+      color: var(--color-text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    button,
+    .touch-target {
+      min-height: 3rem;
+    }
+
+    textarea {
+      font-size: 1rem;
+    }
+
+    .app-header {
+      background: var(--color-primary);
+    }
+
+    .app-header-subtitle {
+      color: var(--color-primary-light);
+    }
+
+    .primary-button {
+      background: var(--color-primary);
+      color: white;
+      min-height: 3rem;
+      transition: background-color .15s ease, transform .15s ease;
+    }
+
+    .primary-button:hover {
+      background: var(--color-primary-dark);
+    }
+
+    .primary-button:active {
+      transform: scale(.98);
+    }
+
+    .primary-button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .accent-button {
+      background: var(--color-accent);
+      color: white;
+    }
+
+    .brand-logo {
+      max-width: 8rem;
+      max-height: 3rem;
+      object-fit: contain;
+    }
+
+    .mobile-menu {
+      display: none;
+    }
+
+    .mobile-menu.open {
+      display: block;
+    }
+
+    .menu-button {
+      min-width: 3rem;
+      min-height: 3rem;
+    }
+
+    .spinner {
+      width: 1.125rem;
+      height: 1.125rem;
+      border: .15625rem solid var(--color-primary-light);
+      border-top-color: var(--color-accent);
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: inherit;
+    }
+
+    .tool-button {
+      min-height: 3rem;
+      min-width: 3rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: .75rem;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      transition: all .15s ease;
+    }
+
+    .tool-button:hover {
+      border-color: var(--color-accent);
+    }
+
+    .tool-button:active {
+      transform: scale(.96);
+    }
+
+    .tool-button.recording {
+      background: #fee2e2;
+      border-color: #ef4444;
+    }
+
+    .camera-label {
+      cursor: pointer;
+    }
+
+    @media (min-width: 48rem) {
+      .mobile-menu {
+        display: flex !important;
+      }
+
+      .menu-button {
+        display: none;
+      }
+    }
   </style>
+
 </head>
-<body class="bg-stone-100 min-h-screen flex flex-col">
-<header class="bg-green-900 text-white sticky top-0 z-10 shadow-lg">
-  <div class="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-    <div class="flex-1 min-w-0">
-      <h1 class="font-bold text-base leading-tight">AgroAid</h1>
-      <p class="text-green-300 text-xs">Seguridad agricola integral</p>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/static/sw.js")
+        .then((registration) => {
+          console.log("AgroAid Service Worker registrado:", registration.scope);
+        })
+        .catch((error) => {
+          console.error("Error registrando Service Worker:", error);
+        });
+    });
+  }
+</script>
+<body class="min-h-screen flex flex-col">
+
+<header class="app-header text-white sticky top-0 z-50 shadow-lg">
+  <div class="max-w-3xl mx-auto w-full px-4 py-3">
+
+
+<div class="flex items-center gap-3">
+
+  <button
+    id="menu-btn"
+    type="button"
+    class="menu-button rounded-xl hover:bg-white/10 flex items-center justify-center"
+    aria-label="Abrir menú"
+    aria-expanded="false"
+  >
+    ☰
+  </button>
+
+  <div id="brand-container" class="flex items-center gap-3 flex-1 min-w-0">
+    <div
+      id="brand-logo-container"
+      class="hidden shrink-0"
+    ></div>
+
+    <div class="min-w-0">
+      <h1 id="app-name" class="font-bold text-lg leading-tight truncate">
+        AgroAid
+      </h1>
+
+      <p
+        id="app-subtitle"
+        class="app-header-subtitle text-xs truncate"
+      >
+        Seguridad agrícola integral
+      </p>
     </div>
-    <div id="api-badge" class="hidden px-2 py-0.5 rounded text-xs font-semibold bg-green-700 whitespace-nowrap"></div>
+  </div>
+
+  <div
+    id="api-badge"
+    class="hidden px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap"
+  ></div>
+</div>
+
+<nav
+  id="mobile-menu"
+  class="mobile-menu mt-3 pt-3 border-t border-white/20 flex-col gap-1"
+>
+  <a
+    href="index.html"
+    class="touch-target flex items-center px-3 rounded-xl hover:bg-white/10 text-sm font-medium"
+  >
+    💬 Chat
+  </a>
+
+  <a
+    href="admin.html#historial"
+    class="touch-target flex items-center px-3 rounded-xl hover:bg-white/10 text-sm font-medium"
+  >
+    📋 Historial
+  </a>
+
+  <a
+    href="admin.html"
+    class="touch-target flex items-center px-3 rounded-xl hover:bg-white/10 text-sm font-medium"
+  >
+    ⚙️ Administración
+  </a>
+</nav>
+
+
   </div>
 </header>
 
-<main class="flex-1 max-w-2xl w-full mx-auto px-4 py-5 space-y-4">
-  <section id="form-panel" class="bg-white rounded-2xl shadow-sm border border-stone-200 p-5">
-    <h2 class="font-semibold text-stone-800 mb-1">Nueva consulta de seguridad agricola</h2>
-    <p class="text-stone-500 text-xs mb-3">
-      Describa una situacion de campo. El sistema evalua riesgos de agroquimicos, clima extremo, maquinaria,
-      agua, zoonosis, bioseguridad vegetal, seguridad alimentaria, incendios rurales y riego/suelo, y pide informacion critica antes de recomendar.
-    </p>
-    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3 text-[11px] text-stone-600">
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Clima extremo</span>
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Maquinaria/calor</span>
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Agua y contaminacion</span>
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Zoonosis</span>
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Bioseguridad vegetal</span>
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Agroquimicos</span>
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Seguridad alimentaria</span>
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Incendios rurales</span>
-      <span class="rounded border border-stone-200 bg-stone-50 px-2 py-1">Riego/suelo</span>
-    </div>
-    <textarea id="consulta-input" rows="4"
-      class="w-full rounded-xl border border-stone-300 p-3 text-sm focus:ring-2 focus:ring-green-600 focus:border-green-600 outline-none resize-none transition"
-      placeholder="Ej: Quiero cosechar despues de fumigar; hay moho en granos; quiero quemar pastizal con viento; o tengo salinidad/erosion en un lote..."></textarea>
-    <div class="flex items-center gap-3 mt-3">
-      <button id="btn-iniciar" onclick="iniciarConsulta()" class="flex items-center gap-2 bg-green-700 hover:bg-green-800 active:scale-95 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all">Evaluar riesgo</button>
-      <div id="sp1" class="hidden flex items-center gap-2 text-stone-500 text-sm"><div class="spinner"></div><span>Analizando...</span></div>
-    </div>
+<main class="flex-1 w-full max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+
+  <!-- FORMULARIO -->
+
+  <section
+    id="form-panel"
+    class="bg-white rounded-2xl shadow-sm border p-4 sm:p-5"
+    style="border-color: var(--color-border);"
+  >
+
+<h2 class="font-semibold text-lg mb-1">
+  Nueva consulta de seguridad agrícola
+</h2>
+
+<p class="text-sm mb-4" style="color: var(--color-muted);">
+  Describa una situación de campo. El sistema evalúa riesgos de
+  agroquímicos, clima extremo, maquinaria, agua, zoonosis,
+  bioseguridad vegetal, seguridad alimentaria, incendios rurales
+  y riego/suelo.
+</p>
+
+<!-- DOMINIOS -->
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4 text-xs">
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Clima extremo
+  </span>
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Maquinaria/calor
+  </span>
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Agua y contaminación
+  </span>
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Zoonosis
+  </span>
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Bioseguridad vegetal
+  </span>
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Agroquímicos
+  </span>
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Seguridad alimentaria
+  </span>
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Incendios rurales
+  </span>
+
+  <span class="rounded-lg border px-2 py-2 bg-stone-50">
+    Riego/suelo
+  </span>
+
+</div>
+
+
+<!-- INPUT -->
+<textarea
+  id="consulta-input"
+  rows="5"
+  class="w-full rounded-xl border p-3 outline-none resize-none transition"
+  style="
+    border-color: var(--color-border);
+    color: var(--color-text);
+  "
+  placeholder="Ej: Quiero cosechar después de fumigar; hay moho en granos; quiero quemar pastizal con viento; o tengo salinidad/erosión en un lote..."
+></textarea>
+
+
+<!-- HERRAMIENTAS -->
+<div class="flex flex-wrap items-center gap-2 mt-3">
+
+  <!-- MICRÓFONO -->
+  <button
+    id="mic-btn"
+    type="button"
+    class="tool-button text-xl"
+    title="Hablar"
+    aria-label="Grabar consulta por voz"
+  >
+    🎤
+  </button>
+
+  <span
+    id="mic-status"
+    class="text-xs"
+    style="color: var(--color-muted);"
+  ></span>
+
+
+  <!-- CÁMARA -->
+  <label
+    for="foto-input"
+    class="tool-button camera-label text-xl"
+    title="Analizar foto"
+    aria-label="Analizar foto"
+  >
+    📷
+  </label>
+
+  <input
+    type="file"
+    id="foto-input"
+    accept="image/*"
+    capture="environment"
+    class="hidden"
+  />
+
+  <span
+    id="foto-status"
+    class="text-xs"
+    style="color: var(--color-muted);"
+  ></span>
+
+</div>
+
+
+<!-- BOTÓN EVALUAR -->
+<div class="flex flex-col sm:flex-row sm:items-center gap-3 mt-4">
+
+  <button
+    id="btn-iniciar"
+    onclick="iniciarConsulta()"
+    class="primary-button w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-semibold px-5 rounded-xl"
+  >
+    <span>Evaluar riesgo</span>
+  </button>
+
+  <div
+    id="sp1"
+    class="hidden items-center justify-center sm:justify-start gap-2 text-sm"
+    style="color: var(--color-muted);"
+  >
+    <div class="spinner"></div>
+    <span>Analizando...</span>
+  </div>
+
+</div>
+
+
   </section>
 
-  <div id="thread" class="space-y-3"></div>
+  <!-- CONVERSACIÓN -->
 
-  <section id="answer-panel" class="hidden bg-white rounded-2xl shadow-sm border border-blue-200 p-5">
-    <p class="text-sm font-medium text-stone-700 mb-2">Responde las preguntas de seguimiento:</p>
-    <textarea id="answer-input" rows="3" class="w-full rounded-xl border border-stone-300 p-3 text-sm focus:ring-2 focus:ring-green-600 focus:border-green-600 outline-none resize-none transition" placeholder="Tu respuesta..."></textarea>
-    <div class="flex items-center gap-3 mt-3">
-      <button id="btn-responder" onclick="enviarRespuesta()" class="flex items-center gap-2 bg-green-700 hover:bg-green-800 active:scale-95 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all">Enviar</button>
-      <div id="sp2" class="hidden flex items-center gap-2 text-stone-500 text-sm"><div class="spinner"></div><span>Procesando...</span></div>
-    </div>
+  <div id="thread" class="space-y-3 mt-4"></div>
+
+  <!-- RESPUESTA -->
+
+  <section
+    id="answer-panel"
+    class="hidden bg-white rounded-2xl shadow-sm border border-blue-200 p-4 sm:p-5 mt-4"
+  >
+
+
+<p class="text-sm font-medium text-stone-700 mb-2">
+  Responde las preguntas de seguimiento:
+</p>
+
+<textarea
+  id="answer-input"
+  rows="4"
+  class="w-full rounded-xl border border-stone-300 p-3 text-base outline-none resize-none transition"
+  placeholder="Tu respuesta..."
+></textarea>
+
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-3">
+
+  <button
+    id="btn-responder"
+    onclick="enviarRespuesta()"
+    class="primary-button w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-semibold px-5 rounded-xl"
+  >
+    Enviar
+  </button>
+
+  <div
+    id="sp2"
+    class="hidden items-center justify-center sm:justify-start gap-2 text-sm"
+    style="color: var(--color-muted);"
+  >
+    <div class="spinner"></div>
+    <span>Procesando...</span>
+  </div>
+
+  <button
+    type="button"
+    onclick="limpiarRespuesta()"
+    class="tool-button text-sm px-4"
+    title="Borrar y reescribir la respuesta"
+  >
+    ✏️ Corregir
+  </button>
+
+  <button
+    type="button"
+    onclick="reiniciarConsulta()"
+    class="min-h-[3rem] text-sm px-3 py-2 rounded-xl text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+    title="Descartar esta consulta y empezar de nuevo"
+  >
+    ↩ Reiniciar
+  </button>
+
+</div>
+
+
   </section>
 
-  <section id="result-panel" class="hidden bg-white rounded-2xl shadow-sm border border-stone-200 p-5">
-    <h2 class="font-bold text-stone-800 mb-4">Evaluacion final de seguridad</h2>
-    <div id="result-content"></div>
-    <button onclick="nuevaConsulta()" class="mt-5 flex items-center gap-2 bg-green-700 hover:bg-green-800 active:scale-95 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all">Nueva consulta</button>
+  <!-- RESULTADO -->
+
+  <section
+    id="result-panel"
+    class="hidden bg-white rounded-2xl shadow-sm border p-4 sm:p-5 mt-4"
+    style="border-color: var(--color-border);"
+  >
+
+
+<h2 class="font-bold text-lg mb-4">
+  Evaluación final de seguridad
+</h2>
+
+<div id="result-content"></div>
+
+<button
+  onclick="nuevaConsulta()"
+  class="primary-button mt-5 w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-semibold px-5 rounded-xl"
+>
+  Nueva consulta
+</button>
+
+
   </section>
+
 </main>
 
-<footer class="py-4 border-t border-stone-200 mt-4">
-  <p class="text-center text-xs text-stone-400">AgroAid - Hackathon Global South AI Safety 2026</p>
+<footer
+  class="py-4 border-t mt-4"
+  style="border-color: var(--color-border);"
+>
+  <p
+    id="footer-text"
+    class="text-center text-xs px-4"
+    style="color: var(--color-muted);"
+  >
+    AgroAid - Hackathon Global South AI Safety 2026
+  </p>
 </footer>
 
 <script>
+
 const API = "";
+
 let consultaId = null;
+let mediaRecorder = null;
+let audioChunks = [];
+
+let currentBranding = {
+  logo_url: null,
+  primary_color: "#15803d",
+  accent_color: "#16a34a",
+  app_name: "AgroAid",
+  footer_text: "AgroAid - Hackathon Global South AI Safety 2026"
+};
+
+
+/* ============================================================
+   BRANDING
+   ============================================================ */
+
+function getTenantSlug() {
+
+  const params = new URLSearchParams(window.location.search);
+
+  return (
+    params.get("slug") ||
+    localStorage.getItem("tenant_slug") ||
+    "default"
+  );
+}
+
+
+async function loadBranding() {
+
+  try {
+
+    const slug = getTenantSlug();
+
+    const res = await fetch(
+      `${API}/api/branding?slug=${encodeURIComponent(slug)}`
+    );
+
+    if (!res.ok) {
+      return;
+    }
+
+    const data = await res.json();
+
+    currentBranding = {
+      ...currentBranding,
+      ...data
+    };
+
+    applyBranding();
+
+  } catch (e) {
+
+    console.warn("No se pudo cargar el branding:", e);
+
+  }
+}
+
+
+function applyBranding() {
+
+  const root = document.documentElement;
+
+  if (currentBranding.primary_color) {
+
+    root.style.setProperty(
+      "--color-primary",
+      currentBranding.primary_color
+    );
+
+  }
+
+  if (currentBranding.accent_color) {
+
+    root.style.setProperty(
+      "--color-accent",
+      currentBranding.accent_color
+    );
+
+  }
+
+
+  /*
+   * Oscurecer automáticamente el color principal para
+   * usarlo en hover.
+   */
+  root.style.setProperty(
+    "--color-primary-dark",
+    currentBranding.primary_color || "#166534"
+  );
+
+
+  if (currentBranding.app_name) {
+
+    document.title = currentBranding.app_name;
+
+    document.getElementById("app-name").textContent =
+      currentBranding.app_name;
+
+  }
+
+
+  if (currentBranding.footer_text) {
+
+    document.getElementById("footer-text").textContent =
+      currentBranding.footer_text;
+
+  }
+
+
+  if (currentBranding.logo_url) {
+
+    const container =
+      document.getElementById("brand-logo-container");
+
+    container.innerHTML = `
+      <img
+        src="${esc(currentBranding.logo_url)}"
+        alt="${esc(currentBranding.app_name || "Logo")}"
+        class="brand-logo"
+      />
+    `;
+
+    container.classList.remove("hidden");
+
+  }
+
+}
+
+
+/* ============================================================
+   MENÚ MOBILE
+   ============================================================ */
+
+const menuBtn = document.getElementById("menu-btn");
+const mobileMenu = document.getElementById("mobile-menu");
+
+menuBtn.addEventListener("click", () => {
+
+  const opened = mobileMenu.classList.toggle("open");
+
+  menuBtn.setAttribute(
+    "aria-expanded",
+    opened ? "true" : "false"
+  );
+
+  menuBtn.textContent = opened ? "✕" : "☰";
+
+});
+
+
+document.querySelectorAll("#mobile-menu a").forEach(link => {
+
+  link.addEventListener("click", () => {
+
+    mobileMenu.classList.remove("open");
+
+    menuBtn.setAttribute("aria-expanded", "false");
+
+    menuBtn.textContent = "☰";
+
+  });
+
+});
+
+
+/* ============================================================
+   DOMINIOS
+   ============================================================ */
 
 const DOMAIN_LABELS = {
-  agroquimicos: "Agroquimicos",
+
+  agroquimicos: "Agroquímicos",
   clima_extremo: "Clima extremo",
   seguridad_laboral: "Seguridad laboral",
-  agua_contaminacion: "Agua/contaminacion",
+  agua_contaminacion: "Agua/contaminación",
   zoonosis_salud_animal: "Zoonosis/salud animal",
   bioseguridad_vegetal: "Bioseguridad vegetal",
   seguridad_alimentaria: "Seguridad alimentaria",
   incendios_rurales: "Incendios rurales",
   riego_suelo: "Riego/suelo",
+
 };
-const domainLabel = d => DOMAIN_LABELS[d] || d;
+
+
+const domainLabel = d =>
+  DOMAIN_LABELS[d] || d;
+
 
 function norm(nivel) {
-  return (nivel || "ALTO").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  return (
+    nivel || "ALTO"
+  )
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
 }
 
-const RISK_BG = { BAJO:"bg-green-600", MEDIO:"bg-yellow-500", ALTO:"bg-orange-500", CRITICO:"bg-red-600" };
-const RISK_BORDER = { BAJO:"border-green-500", MEDIO:"border-yellow-400", ALTO:"border-orange-400", CRITICO:"border-red-500" };
-const RISK_MARK = { BAJO:"OK", MEDIO:"!", ALTO:"!!", CRITICO:"!!!" };
-const riskBg = r => RISK_BG[norm(r)] || "bg-orange-500";
-const riskBorder = r => RISK_BORDER[norm(r)] || "border-orange-400";
-const riskMark = r => RISK_MARK[norm(r)] || "!!";
-const barColor = p => p >= 75 ? "bg-green-500" : p >= 50 ? "bg-yellow-500" : "bg-red-500";
+
+const RISK_BG = {
+
+  BAJO: "bg-green-600",
+  MEDIO: "bg-yellow-500",
+  ALTO: "bg-orange-500",
+  CRITICO: "bg-red-600"
+
+};
+
+
+const RISK_BORDER = {
+
+  BAJO: "border-green-500",
+  MEDIO: "border-yellow-400",
+  ALTO: "border-orange-400",
+  CRITICO: "border-red-500"
+
+};
+
+
+const RISK_MARK = {
+
+  BAJO: "OK",
+  MEDIO: "!",
+  ALTO: "!!",
+  CRITICO: "!!!"
+
+};
+
+
+const riskBg = r =>
+  RISK_BG[norm(r)] || "bg-orange-500";
+
+
+const riskBorder = r =>
+  RISK_BORDER[norm(r)] || "border-orange-400";
+
+
+const riskMark = r =>
+  RISK_MARK[norm(r)] || "!!";
+
+
+const barColor = p =>
+  p >= 75
+    ? "bg-green-500"
+    : p >= 50
+      ? "bg-yellow-500"
+      : "bg-red-500";
+
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
 
 function esc(s) {
-  return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
 }
-function show(id) { document.getElementById(id).classList.remove("hidden"); }
-function hide(id) { document.getElementById(id).classList.add("hidden"); }
-function spin(id, on) { document.getElementById(id).classList.toggle("hidden", !on); }
+
+
+function show(id) {
+
+  document.getElementById(id)
+    .classList.remove("hidden");
+
+}
+
+
+function hide(id) {
+
+  document.getElementById(id)
+    .classList.add("hidden");
+
+}
+
+
+function spin(id, on) {
+
+  document.getElementById(id)
+    .classList.toggle("hidden", !on);
+
+}
+
+
 function appendThread(html) {
+
   const t = document.getElementById("thread");
+
   t.insertAdjacentHTML("beforeend", html);
-  t.lastElementChild.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  t.lastElementChild.scrollIntoView({
+    behavior: "smooth",
+    block: "nearest"
+  });
+
 }
+
+
+/* ============================================================
+   RENDER DOMINIOS
+   ============================================================ */
 
 function renderDomains(domains) {
-  if (!domains?.length) return "";
-  return `<div class="flex flex-wrap gap-1 mb-3">${domains.map(dom =>
-    `<span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold">${esc(domainLabel(dom))}</span>`
-  ).join("")}</div>`;
+
+  if (!domains?.length) {
+    return "";
+  }
+
+  return `
+    <div class="flex flex-wrap gap-1 mb-3">
+      ${domains.map(dom => `
+        <span
+          class="px-2 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold"
+        >
+          ${esc(domainLabel(dom))}
+        </span>
+      `).join("")}
+    </div>
+  `;
+
 }
 
+
+/* ============================================================
+   SEMÁFORO SVG
+   ============================================================ */
+
+function semaforo(nivel) {
+  const n = norm(nivel);
+  const off = "#374151";
+  const lights = {
+    BAJO:    ["#22c55e", off, off],
+    MEDIO:   [off, "#eab308", off],
+    ALTO:    [off, off, "#f97316"],
+    CRITICO: [off, off, "#ef4444"],
+  };
+  const [c1, c2, c3] = lights[n] || lights.ALTO;
+  return `<svg width="66" height="28" viewBox="0 0 66 28" aria-hidden="true">
+    <rect width="66" height="28" rx="5" fill="#1f2937"/>
+    <circle cx="11" cy="14" r="9" fill="${c1}"/>
+    <circle cx="33" cy="14" r="9" fill="${c2}"/>
+    <circle cx="55" cy="14" r="9" fill="${c3}"/>
+  </svg>`;
+}
+
+
+/* ============================================================
+   RENDER ITERACIÓN
+   ============================================================ */
+
 function renderIter(d) {
+
   const riesgo = d.nivel_riesgo || "ALTO";
   const conf = d.confianza ?? 0;
   const abs = !!d.debe_abstenerse;
-  let h = `<div class="bg-white rounded-2xl shadow-sm border-l-4 ${riskBorder(riesgo)} p-4">`;
-  h += `<div class="flex items-center justify-between mb-3 gap-2 flex-wrap">`;
-  h += `<span class="text-xs text-stone-500 font-medium">Respuesta</span>`;
-  h += `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${riskBg(riesgo)} text-white">${riskMark(riesgo)} ${esc(riesgo)}</span>`;
-  h += `</div>`;
+
+  let h = `
+    <div
+      class="bg-white rounded-2xl shadow-sm border-l-4 ${riskBorder(riesgo)} p-4"
+    >
+  `;
+
+  h += `
+    <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
+      <span class="text-xs text-stone-500 font-medium">
+        Respuesta
+      </span>
+
+      <span
+        class="px-2.5 py-1 rounded-full text-xs font-bold ${riskBg(riesgo)} text-white"
+      >
+        ${riskMark(riesgo)} ${esc(riesgo)}
+      </span>
+    </div>
+  `;
+
   h += renderDomains(d.dominios_detectados);
-  h += `<div class="mb-3"><div class="flex justify-between text-xs text-stone-500 mb-1"><span>Confianza del sistema</span><span class="font-semibold">${conf}%</span></div><div class="w-full bg-stone-200 rounded-full h-1.5"><div class="${barColor(conf)} h-1.5 rounded-full transition-all" style="width:${conf}%"></div></div></div>`;
-  if (d.justificacion) h += `<p class="text-sm text-stone-600 italic mb-3">"${esc(d.justificacion)}"</p>`;
-  if (abs) h += `<div class="bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-3 text-sm text-red-700 font-medium">El sistema se abstiene de recomendar por informacion insuficiente, evidencia debil o riesgo alto/critico.</div>`;
-  if (d.riesgos_detectados?.length) h += `<div class="mb-2"><p class="text-xs font-semibold text-red-600 mb-1">Riesgos detectados</p><ul class="list-disc list-inside text-sm text-stone-700 space-y-0.5">${d.riesgos_detectados.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>`;
-  if (d.informacion_faltante?.length) h += `<div class="mb-2"><p class="text-xs font-semibold text-orange-600 mb-1">Informacion faltante</p><ul class="list-disc list-inside text-sm text-stone-700 space-y-0.5">${d.informacion_faltante.map(f => `<li>${esc(f)}</li>`).join("")}</ul></div>`;
-  if (d.marco_regulatorio_aplicable?.length) h += `<div class="mb-2"><p class="text-xs font-semibold text-blue-600 mb-1">Marco/autoridad aplicable</p><ul class="list-disc list-inside text-sm text-stone-700 space-y-0.5">${d.marco_regulatorio_aplicable.map(n => `<li>${esc(n)}</li>`).join("")}</ul></div>`;
-  if (!d.completado && d.preguntas_seguimiento?.length) h += `<div class="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3"><p class="text-xs font-semibold text-blue-700 mb-1">Para continuar la evaluacion, responde:</p><ol class="list-decimal list-inside text-sm text-blue-800 space-y-1">${d.preguntas_seguimiento.map(q => `<li>${esc(q)}</li>`).join("")}</ol></div>`;
+
+  h += `
+    <div class="mb-3">
+
+      <div class="flex justify-between text-xs text-stone-500 mb-1">
+        <span>Confianza del sistema</span>
+        <span class="font-semibold">${conf}%</span>
+      </div>
+
+      <div class="w-full bg-stone-200 rounded-full h-1.5">
+        <div
+          class="${barColor(conf)} h-1.5 rounded-full transition-all"
+          style="width:${Math.min(100, Math.max(0, conf))}%"
+        ></div>
+      </div>
+
+    </div>
+  `;
+
+
+  if (d.justificacion) {
+
+    h += `
+      <p class="text-sm text-stone-600 italic mb-3">
+        "${esc(d.justificacion)}"
+      </p>
+    `;
+
+  }
+
+
+  if (abs) {
+
+    h += `
+      <div class="bg-red-50 border border-red-200 rounded-lg px-3 py-3 mb-3 text-sm text-red-700 font-medium">
+        El sistema se abstiene de recomendar por información insuficiente,
+        evidencia débil o riesgo alto/crítico.
+      </div>
+    `;
+
+  }
+
+
+  if (d.riesgos_detectados?.length) {
+
+    h += `
+      <div class="mb-3">
+        <p class="text-xs font-semibold text-red-600 mb-1">
+          Riesgos detectados
+        </p>
+
+        <ul class="list-disc list-inside text-sm text-stone-700 space-y-1">
+          ${d.riesgos_detectados
+            .map(r => `<li>${esc(r)}</li>`)
+            .join("")}
+        </ul>
+      </div>
+    `;
+
+  }
+
+
+  if (d.informacion_faltante?.length) {
+
+    h += `
+      <div class="mb-3">
+        <p class="text-xs font-semibold text-orange-600 mb-1">
+          Información faltante
+        </p>
+
+        <ul class="list-disc list-inside text-sm text-stone-700 space-y-1">
+          ${d.informacion_faltante
+            .map(f => `<li>${esc(f)}</li>`)
+            .join("")}
+        </ul>
+      </div>
+    `;
+
+  }
+
+
+  if (d.marco_regulatorio_aplicable?.length) {
+
+    h += `
+      <div class="mb-3">
+        <p class="text-xs font-semibold text-blue-600 mb-1">
+          Marco/autoridad aplicable
+        </p>
+
+        <ul class="list-disc list-inside text-sm text-stone-700 space-y-1">
+          ${d.marco_regulatorio_aplicable
+            .map(n => `<li>${esc(n)}</li>`)
+            .join("")}
+        </ul>
+      </div>
+    `;
+
+  }
+
+
+  if (
+    !d.completado &&
+    d.preguntas_seguimiento?.length
+  ) {
+
+    h += `
+      <div class="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3">
+
+        <p class="text-xs font-semibold text-blue-700 mb-1">
+          Para continuar la evaluación, responde:
+        </p>
+
+        <ol class="list-decimal list-inside text-sm text-blue-800 space-y-1">
+          ${d.preguntas_seguimiento
+            .map(q => `<li>${esc(q)}</li>`)
+            .join("")}
+        </ol>
+
+      </div>
+    `;
+
+  }
+
+
   h += `</div>`;
+
   return h;
+
 }
+
+
+/* ============================================================
+   RESULTADO FINAL
+   ============================================================ */
 
 function renderFinal(d) {
+
   const riesgo = d.nivel_riesgo || "ALTO";
-  const verif = d.verificacion_evidencia || {};
-  const hallRisk = (verif.hallucination_risk || "").toUpperCase();
-  let h = `<div class="flex flex-wrap gap-2 mb-4">`;
-  h += `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${riskBg(riesgo)} text-white">${riskMark(riesgo)} Riesgo: ${esc(riesgo)}</span>`;
-  if (d.se_abstuvo_final) h += `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">Sistema se abstuvo</span>`;
-  if (d.requiere_profesional) h += `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">Requiere profesional/autoridad</span>`;
-  if (hallRisk === "HIGH" || hallRisk === "CRITICAL") h += `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700">Riesgo alucinacion: ${esc(hallRisk)}</span>`;
+
+  const verif =
+    d.verificacion_evidencia || {};
+
+  const hallRisk =
+    (verif.hallucination_risk || "")
+      .toUpperCase();
+
+  let h = `
+    <div class="flex items-center gap-3 mb-5 p-3 rounded-xl bg-stone-50 border border-stone-200">
+      ${semaforo(riesgo)}
+      <div>
+        <p class="text-xs text-stone-500 font-medium">Nivel de riesgo evaluado</p>
+        <p class="font-bold text-base">${esc(riesgo)}</p>
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-4">
+  `;
+
+
+  h += `
+    <span
+      class="px-2.5 py-1 rounded-full text-xs font-bold ${riskBg(riesgo)} text-white"
+    >
+      ${riskMark(riesgo)}
+      Riesgo: ${esc(riesgo)}
+    </span>
+  `;
+
+
+  if (d.se_abstuvo_final) {
+
+    h += `
+      <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
+        Sistema se abstuvo
+      </span>
+    `;
+
+  }
+
+
+  if (d.requiere_profesional) {
+
+    h += `
+      <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
+        Requiere profesional/autoridad
+      </span>
+    `;
+
+  }
+
+
+  if (
+    hallRisk === "HIGH" ||
+    hallRisk === "CRITICAL"
+  ) {
+
+    h += `
+      <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
+        Riesgo alucinación: ${esc(hallRisk)}
+      </span>
+    `;
+
+  }
+
+
   h += `</div>`;
-  h += renderDomains(d.dominios_detectados);
-  if (d.evaluacion_final) h += `<div class="bg-stone-50 border border-stone-200 rounded-xl p-4 text-sm text-stone-800 leading-relaxed mb-4"><pre>${esc(d.evaluacion_final)}</pre></div>`;
-  if (consultaId) {
-    h += `<a href="${API}/api/consulta/${consultaId}/pdf" class="inline-flex items-center justify-center bg-green-700 hover:bg-green-800 text-white text-sm font-medium px-4 py-2 rounded-lg mb-4" download>Descargar PDF</a>`;
-  }
-  if (verif.explanation) {
-    h += `<div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800 mb-4"><p class="font-semibold mb-1">Verificacion de evidencia</p><p>${esc(verif.explanation)}</p>`;
-    if (verif.cited_sources?.length) h += `<p class="mt-1 text-xs"><strong>Fuentes:</strong> ${verif.cited_sources.map(esc).join(", ")}</p>`;
-    if (verif.unsupported_claims?.length) h += `<p class="mt-2 text-xs font-semibold text-orange-700">Afirmaciones sin respaldo:</p><ul class="list-disc list-inside text-xs text-orange-700">${verif.unsupported_claims.map(c => `<li>${esc(c)}</li>`).join("")}</ul>`;
-    h += `</div>`;
-  }
-  document.getElementById("result-content").innerHTML = h;
-  show("result-panel");
-  hide("answer-panel");
-  document.getElementById("result-panel").scrollIntoView({ behavior: "smooth" });
+
+  h += renderDomains(
+    d.dominios_detectados
+  );
+
+
+  if (d.evaluacion_final) {
+
+    h += `
+      <div class="bg-stone-50 border border-stone-200 rounded-xl p-4 text-sm text-stone-800 leading-relaxed mb-4">
+        <pre>${esc(d.evaluacion_final)}</pre>
+
+
+  </div>
+`;
+
+
 }
 
-function userBubble(label, text) {
-  return `<div class="flex justify-end"><div class="bg-green-700 text-white rounded-2xl rounded-br-md px-4 py-3 text-sm max-w-[90%]"><p class="font-semibold text-green-200 text-xs mb-1">${esc(label)}</p><p>${esc(text)}</p></div></div>`;
+if (consultaId) {
+
+
+h += `
+  <a
+    href="${API}/api/consulta/${consultaId}/pdf"
+    class="primary-button inline-flex items-center justify-center w-full sm:w-auto px-5 rounded-xl text-sm font-semibold mb-4"
+    download
+  >
+    Descargar PDF
+  </a>
+`;
+
+
 }
 
-async function iniciarConsulta() {
-  const texto = document.getElementById("consulta-input").value.trim();
-  if (!texto) return;
-  document.getElementById("btn-iniciar").disabled = true;
-  spin("sp1", true);
-  appendThread(userBubble("Tu consulta", texto));
-  try {
-    const res = await fetch(`${API}/api/consulta`, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ consulta_inicial:texto }) });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({ detail: res.statusText }))).detail || res.statusText);
-    const data = await res.json();
-    consultaId = data.consulta_id;
-    appendThread(renderIter(data));
-    if (data.completado) renderFinal(data); else { show("answer-panel"); hide("form-panel"); document.getElementById("answer-input").focus(); }
-  } catch (e) {
-    appendThread(`<div class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">Error: ${esc(e.message)}</div>`);
-  } finally {
-    spin("sp1", false);
-    document.getElementById("btn-iniciar").disabled = false;
-  }
+if (verif.explanation) {
+
+
+h += `
+  <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800 mb-4">
+
+    <p class="font-semibold mb-1">
+      Verificación de evidencia
+    </p>
+
+    <p>
+      ${esc(verif.explanation)}
+    </p>
+`;
+
+
+if (verif.cited_sources?.length) {
+
+  h += `
+    <p class="mt-2 text-xs">
+      <strong>Fuentes:</strong>
+      ${verif.cited_sources.map(esc).join(", ")}
+    </p>
+  `;
+
 }
 
-async function enviarRespuesta() {
-  const texto = document.getElementById("answer-input").value.trim();
-  if (!texto || !consultaId) return;
-  document.getElementById("btn-responder").disabled = true;
-  spin("sp2", true);
-  document.getElementById("answer-input").value = "";
-  appendThread(userBubble("Tu respuesta", texto));
-  try {
-    const res = await fetch(`${API}/api/consulta/${consultaId}/responder`, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ respuesta:texto }) });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({ detail: res.statusText }))).detail || res.statusText);
-    const data = await res.json();
-    appendThread(renderIter(data));
-    if (data.completado) renderFinal(data); else document.getElementById("answer-input").focus();
-  } catch (e) {
-    appendThread(`<div class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">Error: ${esc(e.message)}</div>`);
-  } finally {
-    spin("sp2", false);
-    document.getElementById("btn-responder").disabled = false;
-  }
+
+if (verif.unsupported_claims?.length) {
+
+  h += `
+    <p class="mt-2 text-xs font-semibold text-orange-700">
+      Afirmaciones sin respaldo:
+    </p>
+
+    <ul class="list-disc list-inside text-xs text-orange-700">
+      ${verif.unsupported_claims
+        .map(c => `<li>${esc(c)}</li>`)
+        .join("")}
+    </ul>
+  `;
+
 }
 
-function nuevaConsulta() {
-  consultaId = null;
-  document.getElementById("thread").innerHTML = "";
-  hide("result-panel");
-  hide("answer-panel");
-  show("form-panel");
-  document.getElementById("consulta-input").value = "";
-  document.getElementById("consulta-input").focus();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+
+h += `</div>`;
+
+
 }
 
-document.addEventListener("keydown", e => {
-  if (e.key !== "Enter" || e.shiftKey) return;
-  const id = document.activeElement?.id;
-  if (id === "consulta-input") { e.preventDefault(); iniciarConsulta(); }
-  else if (id === "answer-input") { e.preventDefault(); enviarRespuesta(); }
+document.getElementById("result-content").innerHTML = h;
+
+show("result-panel");
+
+hide("answer-panel");
+
+document
+.getElementById("result-panel")
+.scrollIntoView({
+behavior: "smooth"
 });
 
+}
+
+/* ============================================================
+BURBUJA USUARIO
+============================================================ */
+
+function userBubble(label, text) {
+
+return ` <div class="flex justify-end">
+
+
+  <div class="bg-stone-800 text-white rounded-2xl rounded-br-md px-4 py-3 text-sm max-w-[92%]">
+
+    <p class="font-semibold text-stone-300 text-xs mb-1">
+      ${esc(label)}
+    </p>
+
+    <p class="break-words">
+      ${esc(text)}
+    </p>
+
+  </div>
+
+</div>
+
+
+`;
+
+}
+
+/* ============================================================
+CORREGIR / REINICIAR
+============================================================ */
+
+function limpiarRespuesta() {
+  const input = document.getElementById("answer-input");
+  input.value = "";
+  input.focus();
+}
+
+async function reiniciarConsulta() {
+  if (!consultaId) {
+    nuevaConsulta();
+    return;
+  }
+  if (!confirm("¿Querés descartar esta consulta y empezar de nuevo?")) {
+    return;
+  }
+  const originalQuery = document.getElementById("consulta-input").value;
+  try {
+    await fetch(`${API}/api/consulta/${consultaId}`, { method: "DELETE" });
+  } catch (_) { /* ignore */ }
+  nuevaConsulta();
+  if (originalQuery) {
+    document.getElementById("consulta-input").value = originalQuery;
+  }
+}
+
+/* ============================================================
+NUEVA CONSULTA
+============================================================ */
+
+function nuevaConsulta() {
+
+consultaId = null;
+
+document.getElementById("thread").innerHTML = "";
+
+hide("result-panel");
+
+hide("answer-panel");
+
+show("form-panel");
+
+document.getElementById("consulta-input").value = "";
+
+document
+.getElementById("consulta-input")
+.focus();
+
+window.scrollTo({
+top: 0,
+behavior: "smooth"
+});
+
+}
+
+/* ============================================================
+CONSULTA INICIAL
+============================================================ */
+
+async function iniciarConsulta() {
+
+const texto =
+document
+.getElementById("consulta-input")
+.value
+.trim();
+
+if (!texto) {
+return;
+}
+
+const button =
+document.getElementById("btn-iniciar");
+
+button.disabled = true;
+
+spin("sp1", true);
+
+appendThread(
+userBubble("Tu consulta", texto)
+);
+
+try {
+
+
+const res = await fetch(
+  `${API}/api/consulta`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      consulta_inicial: texto
+    })
+  }
+);
+
+
+if (!res.ok) {
+
+  throw new Error(
+    (
+      await res
+        .json()
+        .catch(() => ({
+          detail: res.statusText
+        }))
+    ).detail ||
+    res.statusText
+  );
+
+}
+
+
+const data = await res.json();
+
+consultaId = data.consulta_id;
+
+appendThread(
+  renderIter(data)
+);
+
+
+if (data.completado) {
+
+  renderFinal(data);
+
+} else {
+
+  show("answer-panel");
+
+  hide("form-panel");
+
+  document
+    .getElementById("answer-input")
+    .focus();
+
+}
+
+
+} catch (e) {
+
+
+appendThread(`
+  <div class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
+    Error: ${esc(e.message)}
+  </div>
+`);
+
+
+} finally {
+
+spin("sp1", false);
+
+button.disabled = false;
+
+
+}
+
+}
+
+/* ============================================================
+RESPUESTA DE SEGUIMIENTO
+============================================================ */
+
+async function enviarRespuesta() {
+
+const input =
+document.getElementById("answer-input");
+
+const texto =
+input.value.trim();
+
+if (!texto || !consultaId) {
+return;
+}
+
+const button =
+document.getElementById("btn-responder");
+
+button.disabled = true;
+
+spin("sp2", true);
+
+input.value = "";
+
+appendThread(
+userBubble("Tu respuesta", texto)
+);
+
+try {
+
+
+const res = await fetch(
+  `${API}/api/consulta/${consultaId}/responder`,
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      respuesta: texto
+    })
+  }
+);
+
+
+if (!res.ok) {
+
+  throw new Error(
+    (
+      await res
+        .json()
+        .catch(() => ({
+          detail: res.statusText
+        }))
+    ).detail ||
+    res.statusText
+  );
+
+}
+
+
+const data = await res.json();
+
+appendThread(
+  renderIter(data)
+);
+
+
+if (data.completado) {
+
+  renderFinal(data);
+
+} else {
+
+  input.focus();
+
+}
+
+
+} catch (e) {
+
+
+appendThread(`
+  <div class="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">
+    Error: ${esc(e.message)}
+  </div>
+`);
+
+
+} finally {
+
+
+spin("sp2", false);
+
+button.disabled = false;
+
+
+}
+
+}
+
+/* ============================================================
+ENTER
+============================================================ */
+
+document.addEventListener(
+"keydown",
+e => {
+
+
+if (e.key !== "Enter" || e.shiftKey) {
+  return;
+}
+
+const id =
+  document.activeElement?.id;
+
+
+if (id === "consulta-input") {
+
+  e.preventDefault();
+
+  iniciarConsulta();
+
+} else if (id === "answer-input") {
+
+  e.preventDefault();
+
+  enviarRespuesta();
+
+}
+
+
+}
+);
+
+/* ============================================================
+HEALTH
+============================================================ */
+
 fetch(`${API}/api/health`)
-  .then(r => r.json())
-  .then(d => {
-    const badge = document.getElementById("api-badge");
-    badge.classList.remove("hidden");
-    if (d.ai_ready) {
-      badge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-green-700 text-white";
-      badge.textContent = "Sistema listo";
-    } else {
-      badge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-yellow-600 text-white";
-      badge.textContent = "Sin clave API";
+.then(r => r.json())
+.then(d => {
+
+
+const badge =
+  document.getElementById("api-badge");
+
+badge.classList.remove("hidden");
+
+
+if (d.ai_ready) {
+
+  badge.className =
+    "px-2 py-1 rounded-lg text-xs font-semibold bg-green-700 text-white";
+
+  badge.textContent =
+    "Sistema listo";
+
+} else {
+
+  badge.className =
+    "px-2 py-1 rounded-lg text-xs font-semibold bg-yellow-600 text-white";
+
+  badge.textContent =
+    "Sin clave API";
+
+}
+
+
+})
+.catch(() => {
+
+
+const badge =
+  document.getElementById("api-badge");
+
+badge.classList.remove("hidden");
+
+badge.className =
+  "px-2 py-1 rounded-lg text-xs font-semibold bg-red-700 text-white";
+
+badge.textContent =
+  "Sin conexión";
+
+
+});
+
+/* ============================================================
+VOZ
+============================================================ */
+
+document
+.getElementById("mic-btn")
+.addEventListener("click", async () => {
+
+
+const btn =
+  document.getElementById("mic-btn");
+
+const status =
+  document.getElementById("mic-status");
+
+
+try {
+
+  if (
+    mediaRecorder &&
+    mediaRecorder.state === "recording"
+  ) {
+
+    mediaRecorder.stop();
+
+    btn.textContent = "🎤";
+
+    btn.classList.remove("recording");
+
+    return;
+
+  }
+
+
+  const stream =
+    await navigator.mediaDevices
+      .getUserMedia({
+        audio: true
+      });
+
+
+  audioChunks = [];
+
+  mediaRecorder =
+    new MediaRecorder(stream);
+
+
+  mediaRecorder.ondataavailable =
+    e => {
+
+      audioChunks.push(e.data);
+
+    };
+
+
+  mediaRecorder.onstop =
+    async () => {
+
+      stream
+        .getTracks()
+        .forEach(track => track.stop());
+
+
+      const blob =
+        new Blob(
+          audioChunks,
+          {
+            type: "audio/webm"
+          }
+        );
+
+
+      const fd =
+        new FormData();
+
+      fd.append(
+        "file",
+        blob,
+        "consulta.webm"
+      );
+
+
+      status.textContent =
+        "Transcribiendo…";
+
+
+      try {
+
+        const res =
+          await fetch(
+            "/api/voz/consulta",
+            {
+              method: "POST",
+              body: fd
+            }
+          );
+
+
+        const data =
+          await res.json();
+
+
+        if (!res.ok) {
+
+          throw new Error(
+            data.detail ||
+            "Error al transcribir"
+          );
+
+        }
+
+
+        /*
+         * El endpoint de voz puede devolver
+         * distintos formatos. Si devuelve texto
+         * transcripto, lo colocamos en el textarea.
+         */
+
+        const texto =
+          data.texto ||
+          data.transcripcion ||
+          data.transcript ||
+          data.text;
+
+
+        if (texto) {
+
+          document
+            .getElementById("consulta-input")
+            .value = texto;
+
+        }
+
+
+        status.textContent =
+          "Consulta transcripta";
+
+      } catch (error) {
+
+        status.textContent =
+          error.message;
+
+      }
+
+    };
+
+
+  mediaRecorder.start();
+
+  btn.textContent = "⏹";
+
+  btn.classList.add("recording");
+
+  status.textContent =
+    "Grabando… (clic para detener)";
+
+
+} catch (error) {
+
+  status.textContent =
+    "No se pudo acceder al micrófono.";
+
+}
+
+
+});
+
+/* ============================================================
+IMAGEN
+============================================================ */
+
+document
+.getElementById("foto-input")
+.addEventListener(
+"change",
+async e => {
+
+
+  const file =
+    e.target.files[0];
+
+  if (!file) {
+    return;
+  }
+
+
+  const status =
+    document.getElementById(
+      "foto-status"
+    );
+
+
+  status.textContent =
+    "Analizando etiqueta…";
+
+
+  const fd =
+    new FormData();
+
+  fd.append(
+    "file",
+    file
+  );
+
+
+  try {
+
+    const res =
+      await fetch(
+        "/api/consulta/imagen",
+        {
+          method: "POST",
+          body: fd
+        }
+      );
+
+
+    const data =
+      await res.json();
+
+
+    if (!res.ok) {
+
+      throw new Error(
+        data.detail ||
+        "Error al analizar la imagen"
+      );
+
     }
-  })
-  .catch(() => {
-    const badge = document.getElementById("api-badge");
-    badge.classList.remove("hidden");
-    badge.className = "px-2 py-0.5 rounded text-xs font-semibold bg-red-700 text-white";
-    badge.textContent = "Sin conexion";
-  });
+
+
+    const etiqueta =
+      data.etiqueta_parseada;
+
+
+    if (etiqueta?.producto) {
+
+      status.textContent =
+        `📋 ${etiqueta.producto}`;
+
+    } else {
+
+      status.textContent =
+        "Imagen analizada";
+
+    }
+
+
+    /*
+     * Si el endpoint devuelve una evaluación
+     * completa, la mostramos directamente.
+     */
+
+    if (data.evaluacion) {
+
+      renderFinal(
+        data.evaluacion
+      );
+
+    } else if (
+      data.nivel_riesgo ||
+      data.evaluacion_final
+    ) {
+
+      renderFinal(data);
+
+    }
+
+
+  } catch (error) {
+
+    status.textContent =
+      error.message;
+
+  } finally {
+
+    e.target.value = "";
+
+  }
+
+}
+
+
+);
+
+/* ============================================================
+INICIO
+============================================================ */
+
+loadBranding();
+
 </script>
+
 </body>
 </html>

@@ -1,0 +1,46 @@
+# Secrets & config
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Tests & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ChromaDB: índice vectorial auto-generado desde los PDFs (no versionar)
+data/chroma/
+# SQLite si se usa como fallback local
+data/*.db
+
+# Uploads temporales
+data/uploads/
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Railway / deploy
+*.pid

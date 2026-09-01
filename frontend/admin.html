@@ -1,0 +1,2823 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>AgroAid — Administración</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+
+    :root {
+      --color-primary: #15803d;
+      --color-primary-dark: #166534;
+      --color-primary-light: #dcfce7;
+      --color-accent: #16a34a;
+
+      --color-background: #0f172a;
+      --color-surface: #1e293b;
+      --color-surface-2: #162032;
+      --color-border: #334155;
+
+      --color-text: #e2e8f0;
+      --color-muted: #94a3b8;
+      --color-muted-dark: #64748b;
+    }
+
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+
+    html {
+      font-size: 16px;
+      scroll-behavior: smooth;
+    }
+
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--color-background);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+
+    button {
+      cursor: pointer;
+    }
+
+
+    /* =========================================================
+       LOGIN
+       ========================================================= */
+
+    #login-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--color-background);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 100;
+    }
+
+
+    .login-card {
+      width: 100%;
+      max-width: 24rem;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 1rem;
+      padding: 2rem 1.25rem;
+      box-shadow: 0 1rem 3rem rgba(0, 0, 0, .25);
+    }
+
+
+    .login-brand {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+
+    .login-brand img {
+      max-width: 8rem;
+      max-height: 4rem;
+      object-fit: contain;
+      margin: 0 auto .75rem;
+    }
+
+
+    .login-brand h2 {
+      color: var(--color-primary-light);
+      font-size: 1.25rem;
+      margin-bottom: .25rem;
+    }
+
+
+    .login-brand p {
+      color: var(--color-muted);
+      font-size: .8rem;
+    }
+
+
+    .field {
+      margin-bottom: 1rem;
+    }
+
+
+    .field label {
+      display: block;
+      font-size: .8rem;
+      color: var(--color-muted);
+      margin-bottom: .4rem;
+    }
+
+
+    .field input {
+      width: 100%;
+      min-height: 3rem;
+      padding: .65rem .9rem;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: .65rem;
+      color: var(--color-text);
+      font-size: 1rem;
+    }
+
+
+    .field input:focus {
+      outline: none;
+      border-color: var(--color-accent);
+    }
+
+
+    #login-error {
+      color: #f87171;
+      font-size: .8rem;
+      min-height: 1.2rem;
+      margin-top: .5rem;
+    }
+
+
+    #login-btn {
+      width: 100%;
+      min-height: 3rem;
+      background: var(--color-primary);
+      color: #fff;
+      border: none;
+      border-radius: .65rem;
+      font-size: .95rem;
+      font-weight: 600;
+      margin-top: .5rem;
+    }
+
+
+    #login-btn:hover {
+      background: var(--color-primary-dark);
+    }
+
+
+    /* =========================================================
+       APP
+       ========================================================= */
+
+    #app {
+      min-height: 100vh;
+    }
+
+
+    .container {
+      width: 100%;
+      max-width: 60rem;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+
+    /* =========================================================
+       HEADER
+       ========================================================= */
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--color-background);
+      border-bottom: 1px solid var(--color-border);
+      backdrop-filter: blur(.5rem);
+    }
+
+
+    .header-inner {
+      max-width: 60rem;
+      margin: 0 auto;
+      padding: .75rem 1rem;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+    }
+
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      min-width: 0;
+    }
+
+
+    .brand-logo {
+      max-width: 7rem;
+      max-height: 2.75rem;
+      object-fit: contain;
+    }
+
+
+    .brand-name {
+      color: var(--color-primary-light);
+      font-weight: 700;
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+
+    .brand-subtitle {
+      color: var(--color-muted-dark);
+      font-size: .7rem;
+    }
+
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+
+    .badge {
+      background: var(--color-primary-dark);
+      color: var(--color-primary-light);
+      padding: .35rem .65rem;
+      border-radius: 9999px;
+      font-size: .7rem;
+      white-space: nowrap;
+    }
+
+
+    .logout-btn {
+      min-height: 3rem;
+      padding: .5rem .8rem;
+      background: transparent;
+      border: 1px solid #ef4444;
+      color: #ef4444;
+      border-radius: .6rem;
+      font-size: .8rem;
+    }
+
+
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, .1);
+    }
+
+
+    /* =========================================================
+       NAVIGATION
+       ========================================================= */
+
+    .admin-nav {
+      display: flex;
+      gap: .5rem;
+      overflow-x: auto;
+      padding: .5rem 1rem;
+      max-width: 60rem;
+      margin: 0 auto;
+    }
+
+
+    .admin-nav a {
+      min-height: 3rem;
+      display: flex;
+      align-items: center;
+      padding: 0 .9rem;
+      border-radius: .65rem;
+      color: var(--color-muted);
+      text-decoration: none;
+      font-size: .8rem;
+      white-space: nowrap;
+    }
+
+
+    .admin-nav a:hover,
+    .admin-nav a.active {
+      background: var(--color-surface);
+      color: var(--color-primary-light);
+    }
+
+
+    /* =========================================================
+       SECTIONS
+       ========================================================= */
+
+    .section {
+      margin-bottom: 1rem;
+    }
+
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: .35rem;
+    }
+
+
+    .section-description {
+      color: var(--color-muted);
+      font-size: .8rem;
+      margin-bottom: 1rem;
+    }
+
+
+    .card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: .85rem;
+      overflow: hidden;
+    }
+
+
+    .card-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+
+    .card-header h2 {
+      font-size: .95rem;
+      color: var(--color-muted);
+    }
+
+
+    .card-body {
+      padding: 1rem;
+    }
+
+
+    /* =========================================================
+       KPI
+       ========================================================= */
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+
+
+    .kpi-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: .85rem;
+      padding: 1rem;
+    }
+
+
+    .kpi-label {
+      color: var(--color-muted);
+      font-size: .75rem;
+      margin-bottom: .35rem;
+    }
+
+
+    .kpi-value {
+      color: var(--color-primary-light);
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+
+    #dashboard-status {
+      color: var(--color-muted-dark);
+      font-size: .75rem;
+      margin-bottom: .75rem;
+    }
+
+
+    /* =========================================================
+       CHARTS
+       ========================================================= */
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+
+    .chart-container {
+      position: relative;
+      height: 18rem;
+      padding: 1rem;
+    }
+
+
+    /* =========================================================
+       WHITE LABEL
+       ========================================================= */
+
+    .branding-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+
+    .branding-field {
+      display: flex;
+      flex-direction: column;
+      gap: .4rem;
+    }
+
+
+    .branding-field label {
+      color: var(--color-muted);
+      font-size: .8rem;
+      font-weight: 500;
+    }
+
+
+    .branding-field input {
+      width: 100%;
+      min-height: 3rem;
+      padding: .65rem .8rem;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: .6rem;
+      color: var(--color-text);
+      outline: none;
+    }
+
+
+    .branding-field input:focus {
+      border-color: var(--color-accent);
+    }
+
+
+    .color-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+
+
+    .color-input {
+      width: 3rem !important;
+      min-width: 3rem;
+      height: 3rem;
+      padding: .2rem !important;
+      cursor: pointer;
+    }
+
+
+    .color-value {
+      color: var(--color-muted);
+      font-size: .8rem;
+    }
+
+
+    .logo-preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 6rem;
+      padding: 1rem;
+      background: var(--color-background);
+      border: 1px dashed var(--color-border);
+      border-radius: .65rem;
+      margin-top: .5rem;
+    }
+
+
+    .logo-preview img {
+      max-width: 10rem;
+      max-height: 5rem;
+      object-fit: contain;
+    }
+
+
+    .branding-actions {
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+
+
+    .btn {
+      min-height: 3rem;
+      padding: .65rem 1rem;
+      border: none;
+      border-radius: .6rem;
+      cursor: pointer;
+      font-size: .85rem;
+      font-weight: 600;
+    }
+
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: #fff;
+    }
+
+
+    .btn-primary:hover {
+      background: var(--color-primary-dark);
+    }
+
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--color-border);
+      color: var(--color-muted);
+    }
+
+
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+    }
+
+
+    #branding-status {
+      min-height: 1.25rem;
+      font-size: .8rem;
+      margin-top: .75rem;
+    }
+
+
+    .status-ok {
+      color: #4ade80;
+    }
+
+
+    .status-err {
+      color: #f87171;
+    }
+
+
+    /* =========================================================
+       UPLOAD
+       ========================================================= */
+
+    .upload-card {
+      background: var(--color-surface);
+      border: 2px dashed var(--color-border);
+      border-radius: .85rem;
+      padding: 1.5rem 1rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      transition: border-color .2s;
+    }
+
+
+    .upload-card.dragover {
+      border-color: var(--color-accent);
+    }
+
+
+    .upload-card input[type=file] {
+      display: none;
+    }
+
+
+    .upload-card label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 3rem;
+      background: var(--color-primary);
+      color: #fff;
+      padding: .6rem 1.2rem;
+      border-radius: .6rem;
+      cursor: pointer;
+      margin-bottom: .75rem;
+      font-size: .85rem;
+      font-weight: 600;
+    }
+
+
+    .upload-card p {
+      color: var(--color-muted-dark);
+      font-size: .8rem;
+    }
+
+
+    #upload-status {
+      margin-top: .75rem;
+      font-size: .8rem;
+      min-height: 1.2rem;
+    }
+
+
+    /* =========================================================
+       TABLE
+       ========================================================= */
+
+    .table-card {
+      background: var(--color-surface);
+      border-radius: .85rem;
+      border: 1px solid var(--color-border);
+      overflow: hidden;
+    }
+
+
+    .table-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--color-border);
+
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: .75rem;
+    }
+
+
+    .table-header h2 {
+      font-size: .95rem;
+      color: var(--color-muted);
+    }
+
+
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 32rem;
+    }
+
+
+    th {
+      text-align: left;
+      padding: .75rem 1rem;
+      font-size: .7rem;
+      color: var(--color-muted-dark);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      background: var(--color-surface-2);
+    }
+
+
+    td {
+      padding: .85rem 1rem;
+      border-top: 1px solid var(--color-border);
+      font-size: .8rem;
+    }
+
+
+    tr:hover td {
+      background: var(--color-surface-2);
+    }
+
+
+    .file-name {
+      color: var(--color-text);
+      font-weight: 500;
+    }
+
+
+    .file-size {
+      color: var(--color-muted-dark);
+    }
+
+
+    .empty-row td {
+      text-align: center;
+      color: var(--color-muted-dark);
+      padding: 2.5rem 1rem;
+    }
+
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+
+    @media (min-width: 40rem) {
+
+      .container {
+        padding: 1.5rem;
+      }
+
+
+      .kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+
+      .charts-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+
+      .branding-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+
+      .branding-field.full {
+        grid-column: 1 / -1;
+      }
+
+
+      .branding-actions {
+        flex-direction: row;
+      }
+
+
+      .branding-actions .btn {
+        width: auto;
+      }
+
+
+      .table-header {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+    }
+
+
+    @media (min-width: 48rem) {
+
+      .container {
+        padding: 2rem;
+      }
+
+
+      .header-inner {
+        padding-left: 2rem;
+        padding-right: 2rem;
+      }
+
+
+      .admin-nav {
+        padding-left: 2rem;
+        padding-right: 2rem;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<!-- ============================================================
+     LOGIN
+     ============================================================ -->
+
+<div id="login-overlay">
+
+  <div class="login-card">
+
+
+<div class="login-brand">
+
+  <div id="login-logo-container"></div>
+
+  <h2 id="login-app-name">
+    🌿 AgroAid Admin
+  </h2>
+
+  <p>
+    Panel de administración
+  </p>
+
+</div>
+
+
+<div class="field">
+
+  <label for="login-email">
+    Email
+  </label>
+
+  <input
+    type="email"
+    id="login-email"
+    placeholder="admin@ejemplo.com"
+    autocomplete="username"
+  />
+
+</div>
+
+
+<div class="field">
+
+  <label for="login-password">
+    Contraseña
+  </label>
+
+  <input
+    type="password"
+    id="login-password"
+    placeholder="••••••••"
+    autocomplete="current-password"
+  />
+
+</div>
+
+
+<div id="login-error"></div>
+
+
+<button
+  id="login-btn"
+  onclick="doLogin()"
+>
+  Ingresar
+</button>
+
+
+  </div>
+
+</div>
+
+<!-- ============================================================
+     APP
+     ============================================================ -->
+
+<div id="app" style="display:none">
+
+  <!-- HEADER -->
+
+  <header class="app-header">
+
+
+<div class="header-inner">
+
+  <div class="brand">
+
+    <div id="header-logo-container"></div>
+
+    <div>
+
+      <div
+        id="header-app-name"
+        class="brand-name"
+      >
+        AgroAid
+      </div>
+
+      <div class="brand-subtitle">
+        Administración
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="header-actions">
+
+    <span
+      class="badge"
+      id="user-badge"
+    >
+      admin
+    </span>
+
+    <button
+      class="logout-btn"
+      onclick="logout()"
+    >
+      Cerrar sesión
+    </button>
+
+  </div>
+
+</div>
+
+
+<!-- NAV -->
+
+<nav class="admin-nav">
+
+  <a
+    href="#dashboard"
+    class="active"
+  >
+    📊 Dashboard
+  </a>
+
+  <a href="#branding">
+    🎨 White-label
+  </a>
+
+  <a href="#knowledge-base">
+    📚 Knowledge Base
+  </a>
+
+  <a href="index.html">
+    💬 Ir al chat
+  </a>
+
+</nav>
+
+
+  </header>
+
+  <main class="container">
+
+
+<!-- ========================================================
+     DASHBOARD
+     ======================================================== -->
+
+<section
+  id="dashboard"
+  class="section"
+>
+
+  <h1 class="section-title">
+    Dashboard
+  </h1>
+
+  <p class="section-description">
+    Métricas generales del sistema.
+  </p>
+
+
+  <div id="dashboard-status">
+    Cargando métricas…
+  </div>
+
+
+  <div class="kpi-grid">
+
+    <div class="kpi-card">
+
+      <div class="kpi-label">
+        Consultas totales
+      </div>
+
+      <div
+        id="total-consultas"
+        class="kpi-value"
+      >
+        0
+      </div>
+
+    </div>
+
+
+    <div class="kpi-card">
+
+      <div class="kpi-label">
+        Tasa de abstención
+      </div>
+
+      <div
+        id="tasa-abstencion"
+        class="kpi-value"
+      >
+        0%
+      </div>
+
+    </div>
+
+
+    <div class="kpi-card">
+
+      <div class="kpi-label">
+        Confianza promedio
+      </div>
+
+      <div
+        id="confianza-promedio"
+        class="kpi-value"
+      >
+        0%
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="charts-grid">
+
+    <div class="card">
+
+      <div class="card-header">
+
+        <h2>
+          Consultas por día
+        </h2>
+
+      </div>
+
+      <div class="chart-container">
+
+        <canvas id="consultas-chart"></canvas>
+
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="card-header">
+
+        <h2>
+          Distribución de riesgo
+        </h2>
+
+      </div>
+
+      <div class="chart-container">
+
+        <canvas id="riesgo-chart"></canvas>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ========================================================
+     WHITE LABEL
+     ======================================================== -->
+
+<section
+  id="branding"
+  class="section"
+>
+
+  <h1 class="section-title">
+    White-label
+  </h1>
+
+  <p class="section-description">
+    Personalizá la identidad visual de la aplicación para este tenant.
+  </p>
+
+
+  <div class="card">
+
+    <div class="card-header">
+
+      <h2>
+        Identidad de la aplicación
+      </h2>
+
+    </div>
+
+
+    <div class="card-body">
+
+      <div class="branding-grid">
+
+
+        <!-- APP NAME -->
+
+        <div class="branding-field">
+
+          <label for="branding-app-name">
+            Nombre de la aplicación
+          </label>
+
+          <input
+            id="branding-app-name"
+            type="text"
+            placeholder="AgroAid"
+          />
+
+        </div>
+
+
+        <!-- LOGO -->
+
+        <div class="branding-field">
+
+          <label for="branding-logo">
+            URL del logo
+          </label>
+
+          <input
+            id="branding-logo"
+            type="url"
+            placeholder="https://ejemplo.com/logo.png"
+          />
+
+        </div>
+
+
+        <!-- PRIMARY -->
+
+        <div class="branding-field">
+
+          <label>
+            Color principal
+          </label>
+
+          <div class="color-input-wrapper">
+
+            <input
+              id="branding-primary"
+              class="color-input"
+              type="color"
+              value="#15803d"
+            />
+
+            <span
+              id="branding-primary-value"
+              class="color-value"
+            >
+              #15803D
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- ACCENT -->
+
+        <div class="branding-field">
+
+          <label>
+            Color de acento
+          </label>
+
+          <div class="color-input-wrapper">
+
+            <input
+              id="branding-accent"
+              class="color-input"
+              type="color"
+              value="#16a34a"
+            />
+
+            <span
+              id="branding-accent-value"
+              class="color-value"
+            >
+              #16A34A
+            </span>
+
+          </div>
+
+        </div>
+
+
+        <!-- FOOTER -->
+
+        <div class="branding-field full">
+
+          <label for="branding-footer">
+            Texto del footer
+          </label>
+
+          <input
+            id="branding-footer"
+            type="text"
+            placeholder="Mi empresa — Todos los derechos reservados"
+          />
+
+        </div>
+
+
+        <!-- PREVIEW -->
+
+        <div class="branding-field full">
+
+          <label>
+            Vista previa del logo
+          </label>
+
+          <div
+            id="logo-preview"
+            class="logo-preview"
+          >
+            <span style="color:var(--color-muted-dark)">
+              Sin logo configurado
+            </span>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="branding-actions">
+
+        <button
+          id="save-branding-btn"
+          class="btn btn-primary"
+          onclick="saveBranding()"
+        >
+          Guardar cambios
+        </button>
+
+        <button
+          class="btn btn-outline"
+          onclick="loadBranding()"
+        >
+          ↻ Recargar
+        </button>
+
+      </div>
+
+
+      <div id="branding-status"></div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- ========================================================
+     KNOWLEDGE BASE
+     ======================================================== -->
+
+<section
+  id="knowledge-base"
+  class="section"
+>
+
+  <h1 class="section-title">
+    Knowledge Base
+  </h1>
+
+  <p class="section-description">
+    Administrá los documentos utilizados como evidencia por el sistema.
+  </p>
+
+
+  <!-- UPLOAD -->
+
+  <div
+    class="upload-card"
+    id="drop-zone"
+  >
+
+    <label for="pdf-input">
+      📄 Seleccionar PDF
+    </label>
+
+    <input
+      type="file"
+      id="pdf-input"
+      accept="application/pdf"
+      onchange="uploadSelected(this)"
+    />
+
+    <p>
+      o arrastrá y soltá un archivo PDF acá
+    </p>
+
+    <div id="upload-status"></div>
+
+  </div>
+
+
+  <!-- PDF LIST -->
+
+  <div class="table-card">
+
+    <div class="table-header">
+
+      <h2>
+        Documentos indexados
+      </h2>
+
+      <button
+        class="btn btn-outline"
+        onclick="loadPdfs()"
+      >
+        ↻ Actualizar
+      </button>
+
+    </div>
+
+
+    <div class="table-wrapper">
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>Archivo</th>
+            <th>Tamaño</th>
+            <th>Acción</th>
+          </tr>
+
+        </thead>
+
+        <tbody id="pdf-tbody"></tbody>
+
+      </table>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+  </main>
+
+</div>
+
+<script>
+
+/* ============================================================
+   CONFIG
+   ============================================================ */
+
+const TOKEN_KEY = "agro_access_token";
+
+let consultasChart = null;
+let riesgoChart = null;
+
+let branding = {
+  logo_url: null,
+  primary_color: "#15803d",
+  accent_color: "#16a34a",
+  app_name: "AgroAid",
+  footer_text: ""
+};
+
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
+function token() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+
+function authHdr() {
+
+  return {
+    "Authorization": "Bearer " + token()
+  };
+
+}
+
+
+function fmtSize(b) {
+
+  if (b > 1048576) {
+    return (b / 1048576).toFixed(1) + " MB";
+  }
+
+  return Math.round(b / 1024) + " KB";
+
+}
+
+
+function escHtml(s) {
+
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+}
+
+
+/* ============================================================
+   BRANDING
+   ============================================================ */
+
+function applyBranding() {
+
+  const root =
+    document.documentElement;
+
+
+  if (branding.primary_color) {
+
+    root.style.setProperty(
+      "--color-primary",
+      branding.primary_color
+    );
+
+  }
+
+
+  if (branding.accent_color) {
+
+    root.style.setProperty(
+      "--color-accent",
+      branding.accent_color
+    );
+
+  }
+
+
+  if (branding.app_name) {
+
+    document.title =
+      branding.app_name + " — Administración";
+
+
+    document.getElementById(
+      "header-app-name"
+    ).textContent =
+      branding.app_name;
+
+
+    document.getElementById(
+      "login-app-name"
+    ).textContent =
+      branding.app_name + " Admin";
+
+  }
+
+
+  renderLogo();
+
+}
+
+
+function renderLogo() {
+
+  const header =
+    document.getElementById(
+      "header-logo-container"
+    );
+
+
+  const login =
+    document.getElementById(
+      "login-logo-container"
+    );
+
+
+  const preview =
+    document.getElementById(
+      "logo-preview"
+    );
+
+
+  if (!branding.logo_url) {
+
+    header.innerHTML = "";
+
+    login.innerHTML = "";
+
+    preview.innerHTML = `
+      <span style="color:var(--color-muted-dark)">
+        Sin logo configurado
+      </span>
+    `;
+
+    return;
+
+  }
+
+
+  const safeUrl =
+    escHtml(branding.logo_url);
+
+
+  header.innerHTML = `
+    <img
+      src="${safeUrl}"
+      alt="${escHtml(branding.app_name || "Logo")}"
+      class="brand-logo"
+    />
+  `;
+
+
+  login.innerHTML = `
+    <img
+      src="${safeUrl}"
+      alt="${escHtml(branding.app_name || "Logo")}"
+    />
+  `;
+
+
+  preview.innerHTML = `
+    <img
+      src="${safeUrl}"
+      alt="${escHtml(branding.app_name || "Logo")}"
+    />
+  `;
+
+}
+
+
+async function loadBranding() {
+
+  const status =
+    document.getElementById(
+      "branding-status"
+    );
+
+
+  status.textContent =
+    "Cargando configuración…";
+
+  status.className = "";
+
+
+  try {
+
+    /*
+     * Para el panel admin usamos el endpoint
+     * autenticado. El backend deberá obtener
+     * el tenant asociado al administrador.
+     */
+
+    const response =
+      await fetch(
+        "/api/branding",
+        {
+          headers: authHdr()
+        }
+      );
+
+
+    if (response.status === 401) {
+
+      logout();
+
+      return;
+
+    }
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "Error " + response.status
+      );
+
+    }
+
+
+    branding =
+      await response.json();
+
+
+    document.getElementById(
+      "branding-app-name"
+    ).value =
+      branding.app_name || "";
+
+
+    document.getElementById(
+      "branding-logo"
+    ).value =
+      branding.logo_url || "";
+
+
+    document.getElementById(
+      "branding-primary"
+    ).value =
+      branding.primary_color || "#15803d";
+
+
+    document.getElementById(
+      "branding-accent"
+    ).value =
+      branding.accent_color || "#16a34a";
+
+
+    document.getElementById(
+      "branding-footer"
+    ).value =
+      branding.footer_text || "";
+
+
+    updateColorLabels();
+
+    applyBranding();
+
+
+    status.textContent =
+      "Configuración cargada correctamente.";
+
+    status.className =
+      "status-ok";
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    status.textContent =
+      "No se pudo cargar la configuración.";
+
+    status.className =
+      "status-err";
+
+  }
+
+}
+
+
+async function saveBranding() {
+
+  const button =
+    document.getElementById(
+      "save-branding-btn"
+    );
+
+
+  const status =
+    document.getElementById(
+      "branding-status"
+    );
+
+
+  button.disabled = true;
+
+  status.textContent =
+    "Guardando…";
+
+  status.className = "";
+
+
+  const payload = {
+
+    logo_url:
+      document.getElementById(
+        "branding-logo"
+      ).value.trim() || null,
+
+    primary_color:
+      document.getElementById(
+        "branding-primary"
+      ).value,
+
+    accent_color:
+      document.getElementById(
+        "branding-accent"
+      ).value,
+
+    app_name:
+      document.getElementById(
+        "branding-app-name"
+      ).value.trim() || "AgroAid",
+
+    footer_text:
+      document.getElementById(
+        "branding-footer"
+      ).value.trim() || null
+
+  };
+
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/branding",
+        {
+          method: "PUT",
+
+          headers: {
+            ...authHdr(),
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify(payload)
+        }
+      );
+
+
+    if (response.status === 401) {
+
+      logout();
+
+      return;
+
+    }
+
+
+    const data =
+      await response
+        .json()
+        .catch(() => ({}));
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.detail ||
+        "Error al guardar"
+      );
+
+    }
+
+
+    branding = {
+      ...branding,
+      ...payload
+    };
+
+
+    applyBranding();
+
+
+    status.textContent =
+      "✓ Cambios guardados correctamente.";
+
+    status.className =
+      "status-ok";
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    status.textContent =
+      error.message ||
+      "Error al guardar.";
+
+    status.className =
+      "status-err";
+
+  } finally {
+
+    button.disabled = false;
+
+  }
+
+}
+
+
+function updateColorLabels() {
+
+  const primary =
+    document.getElementById(
+      "branding-primary"
+    ).value.toUpperCase();
+
+
+  const accent =
+    document.getElementById(
+      "branding-accent"
+    ).value.toUpperCase();
+
+
+  document.getElementById(
+    "branding-primary-value"
+  ).textContent =
+    primary;
+
+
+  document.getElementById(
+    "branding-accent-value"
+  ).textContent =
+    accent;
+
+}
+
+
+document
+  .getElementById("branding-primary")
+  .addEventListener(
+    "input",
+    updateColorLabels
+  );
+
+
+document
+  .getElementById("branding-accent")
+  .addEventListener(
+    "input",
+    updateColorLabels
+  );
+
+
+document
+  .getElementById("branding-logo")
+  .addEventListener(
+    "input",
+    e => {
+
+      branding.logo_url =
+        e.target.value.trim() || null;
+
+      renderLogo();
+
+    }
+  );
+
+
+/* ============================================================
+   AUTH
+   ============================================================ */
+
+async function doLogin() {
+
+  const email =
+    document
+      .getElementById("login-email")
+      .value
+      .trim();
+
+
+  const password =
+    document
+      .getElementById("login-password")
+      .value;
+
+
+  const errEl =
+    document.getElementById(
+      "login-error"
+    );
+
+
+  errEl.textContent = "";
+
+
+  if (!email || !password) {
+
+    errEl.textContent =
+      "Completá email y contraseña.";
+
+    return;
+
+  }
+
+
+  try {
+
+    const res =
+      await fetch(
+        "/auth/login",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              email,
+              password
+            })
+        }
+      );
+
+
+    if (!res.ok) {
+
+      const d =
+        await res
+          .json()
+          .catch(() => ({}));
+
+
+      errEl.textContent =
+        d.detail ||
+        "Credenciales inválidas.";
+
+      return;
+
+    }
+
+
+    const data =
+      await res.json();
+
+
+    localStorage.setItem(
+      TOKEN_KEY,
+      data.access_token
+    );
+
+
+    document.getElementById(
+      "login-overlay"
+    ).style.display = "none";
+
+
+    document.getElementById(
+      "app"
+    ).style.display = "block";
+
+
+    await loadBranding();
+
+    loadDashboard();
+
+    loadPdfs();
+
+
+  } catch (e) {
+
+    console.error(e);
+
+    errEl.textContent =
+      "Error de conexión.";
+
+  }
+
+}
+
+
+function logout() {
+
+  localStorage.removeItem(
+    TOKEN_KEY
+  );
+
+  location.reload();
+
+}
+
+
+/* ============================================================
+   SESSION
+   ============================================================ */
+
+if (token()) {
+
+  document.getElementById(
+    "login-overlay"
+  ).style.display = "none";
+
+
+  document.getElementById(
+    "app"
+  ).style.display = "block";
+
+
+  loadBranding();
+
+  loadDashboard();
+
+  loadPdfs();
+
+}
+
+
+/* ============================================================
+   LOGIN ENTER
+   ============================================================ */
+
+document.addEventListener(
+  "keydown",
+  e => {
+
+    if (
+      e.key === "Enter" &&
+      document.getElementById(
+        "login-overlay"
+      ).style.display !== "none"
+    ) {
+
+      doLogin();
+
+    }
+
+  }
+);
+
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+
+async function loadDashboard() {
+
+  const status =
+    document.getElementById(
+      "dashboard-status"
+    );
+
+
+  status.textContent =
+    "Actualizando…";
+
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/dashboard",
+        {
+          headers: authHdr()
+        }
+      );
+
+
+    if (response.status === 401) {
+
+      logout();
+
+      return;
+
+    }
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        "Error " + response.status
+      );
+
+    }
+
+
+    const data =
+      await response.json();
+
+
+    document.getElementById(
+      "total-consultas"
+    ).textContent =
+      formatNumber(
+        data.total_consultas
+      );
+
+
+    document.getElementById(
+      "tasa-abstencion"
+    ).textContent =
+      formatPercent(
+        data.tasa_abstencion
+      );
+
+
+    document.getElementById(
+      "confianza-promedio"
+    ).textContent =
+      formatConfidence(
+        data.confianza_promedio
+      );
+
+
+    renderConsultasChart(
+      data.consultas_por_dia || []
+    );
+
+
+    renderRiesgoChart(
+      data.distribucion_riesgo || []
+    );
+
+
+    status.textContent =
+      "Actualizado correctamente";
+
+
+  } catch (e) {
+
+    console.error(
+      "Error cargando dashboard:",
+      e
+    );
+
+
+    status.textContent =
+      "Error cargando métricas";
+
+  }
+
+}
+
+
+function formatNumber(value) {
+
+  if (
+    value === null ||
+    value === undefined
+  ) {
+
+    return "0";
+
+  }
+
+
+  return Number(value)
+    .toLocaleString("es-AR");
+
+}
+
+
+function formatPercent(value) {
+
+  if (
+    value === null ||
+    value === undefined
+  ) {
+
+    return "0%";
+
+  }
+
+
+  const number =
+    Number(value);
+
+
+  if (number <= 1) {
+
+    return (
+      number * 100
+    ).toFixed(1) + "%";
+
+  }
+
+
+  return number.toFixed(1) + "%";
+
+}
+
+
+function formatConfidence(value) {
+
+  if (
+    value === null ||
+    value === undefined
+  ) {
+
+    return "0%";
+
+  }
+
+
+  const number =
+    Number(value);
+
+
+  if (number <= 1) {
+
+    return (
+      number * 100
+    ).toFixed(1) + "%";
+
+  }
+
+
+  return number.toFixed(1) + "%";
+
+}
+
+
+/* ============================================================
+   CHART — CONSULTAS
+   ============================================================ */
+
+function renderConsultasChart(data) {
+
+  const ctx =
+    document.getElementById(
+      "consultas-chart"
+    );
+
+
+  if (consultasChart) {
+
+    consultasChart.destroy();
+
+  }
+
+
+  const labels =
+    data.map(
+      item => item.fecha
+    );
+
+
+  const values =
+    data.map(
+      item => item.total
+    );
+
+
+  consultasChart =
+    new Chart(
+      ctx,
+      {
+
+        type: "line",
+
+        data: {
+
+          labels,
+
+          datasets: [{
+
+            label: "Consultas",
+
+            data: values,
+
+            borderWidth: 2,
+
+            tension: .3,
+
+            fill: false,
+
+            pointRadius: 3,
+
+            pointHoverRadius: 5
+
+          }]
+
+        },
+
+
+        options: {
+
+          responsive: true,
+
+          maintainAspectRatio: false,
+
+          plugins: {
+
+            legend: {
+              display: false
+            }
+
+          },
+
+          scales: {
+
+            x: {
+
+              ticks: {
+                color: "#64748b"
+              },
+
+              grid: {
+                color: "#263449"
+              }
+
+            },
+
+            y: {
+
+              beginAtZero: true,
+
+              ticks: {
+                color: "#64748b",
+                precision: 0
+              },
+
+              grid: {
+                color: "#263449"
+              }
+
+            }
+
+          }
+
+        }
+
+      }
+    );
+
+}
+
+
+/* ============================================================
+   CHART — RIESGO
+   ============================================================ */
+
+function renderRiesgoChart(data) {
+
+  const ctx =
+    document.getElementById(
+      "riesgo-chart"
+    );
+
+
+  if (riesgoChart) {
+
+    riesgoChart.destroy();
+
+  }
+
+
+  const labels =
+    data.map(
+      item => item.riesgo
+    );
+
+
+  const values =
+    data.map(
+      item => item.total
+    );
+
+
+  riesgoChart =
+    new Chart(
+      ctx,
+      {
+
+        type: "doughnut",
+
+        data: {
+
+          labels,
+
+          datasets: [{
+
+            data: values,
+
+            borderWidth: 2
+
+          }]
+
+        },
+
+
+        options: {
+
+          responsive: true,
+
+          maintainAspectRatio: false,
+
+          plugins: {
+
+            legend: {
+
+              position: "bottom",
+
+              labels: {
+                color: "#94a3b8"
+              }
+
+            }
+
+          }
+
+        }
+
+      }
+    );
+
+}
+
+
+/* ============================================================
+   PDF STATUS
+   ============================================================ */
+
+function setStatus(
+  msg,
+  ok = true
+) {
+
+  const el =
+    document.getElementById(
+      "upload-status"
+    );
+
+
+  el.textContent = msg;
+
+  el.className =
+    ok
+      ? "status-ok"
+      : "status-err";
+
+}
+
+
+/* ============================================================
+   LOAD PDFS
+   ============================================================ */
+
+async function loadPdfs() {
+
+  const tbody =
+    document.getElementById(
+      "pdf-tbody"
+    );
+
+
+  tbody.innerHTML = `
+    <tr>
+      <td
+        colspan="3"
+        style="
+          text-align:center;
+          color:#475569;
+          padding:2rem
+        "
+      >
+        Cargando…
+      </td>
+    </tr>
+  `;
+
+
+  try {
+
+    const res =
+      await fetch(
+        "/api/admin/pdfs",
+        {
+          headers: authHdr()
+        }
+      );
+
+
+    if (res.status === 401) {
+
+      logout();
+
+      return;
+
+    }
+
+
+    if (!res.ok) {
+
+      throw new Error(
+        "Error " + res.status
+      );
+
+    }
+
+
+    const pdfs =
+      await res.json();
+
+
+    if (!pdfs.length) {
+
+      tbody.innerHTML = `
+        <tr class="empty-row">
+          <td colspan="3">
+            No hay PDFs cargados todavía.
+          </td>
+        </tr>
+      `;
+
+      return;
+
+    }
+
+
+    tbody.innerHTML =
+      pdfs.map(
+        pdf => `
+
+          <tr>
+
+            <td class="file-name">
+              ${escHtml(pdf.filename)}
+            </td>
+
+            <td class="file-size">
+              ${fmtSize(pdf.size_bytes)}
+            </td>
+
+            <td>
+
+              <button
+                class="btn btn-danger"
+                onclick="deletePdf('${escHtml(pdf.filename)}')"
+              >
+                Eliminar
+              </button>
+
+            </td>
+
+          </tr>
+
+        `
+      ).join("");
+
+
+  } catch (e) {
+
+    tbody.innerHTML = `
+      <tr class="empty-row">
+        <td colspan="3">
+          Error cargando PDFs: ${escHtml(e.message)}
+        </td>
+      </tr>
+    `;
+
+  }
+
+}
+
+
+/* ============================================================
+   UPLOAD
+   ============================================================ */
+
+async function uploadSelected(input) {
+
+  if (!input.files.length) {
+    return;
+  }
+
+
+  await uploadFile(
+    input.files[0]
+  );
+
+
+  input.value = "";
+
+}
+
+
+async function uploadFile(file) {
+
+  if (
+    !file.name
+      .toLowerCase()
+      .endsWith(".pdf")
+  ) {
+
+    setStatus(
+      "Solo se aceptan archivos PDF.",
+      false
+    );
+
+    return;
+
+  }
+
+
+  setStatus(
+    "Subiendo " +
+    file.name +
+    "…"
+  );
+
+
+  const fd =
+    new FormData();
+
+
+  fd.append(
+    "file",
+    file
+  );
+
+
+  try {
+
+    const res =
+      await fetch(
+        "/api/admin/pdfs",
+        {
+          method: "POST",
+          headers: authHdr(),
+          body: fd
+        }
+      );
+
+
+    if (res.status === 401) {
+
+      logout();
+
+      return;
+
+    }
+
+
+    const data =
+      await res
+        .json()
+        .catch(() => ({}));
+
+
+    if (!res.ok) {
+
+      setStatus(
+        data.detail ||
+        "Error al subir.",
+        false
+      );
+
+      return;
+
+    }
+
+
+    setStatus(
+      `✓ ${data.filename} subido (${fmtSize(data.size_bytes)})`
+    );
+
+
+    loadPdfs();
+
+
+  } catch (e) {
+
+    setStatus(
+      "Error de conexión.",
+      false
+    );
+
+  }
+
+}
+
+
+/* ============================================================
+   DELETE PDF
+   ============================================================ */
+
+async function deletePdf(
+  filename
+) {
+
+  if (
+    !confirm(
+      `¿Eliminar "${filename}" del knowledge base?`
+    )
+  ) {
+
+    return;
+
+  }
+
+
+  try {
+
+    const res =
+      await fetch(
+        "/api/admin/pdfs/" +
+        encodeURIComponent(filename),
+        {
+          method: "DELETE",
+          headers: authHdr()
+        }
+      );
+
+
+    if (res.status === 401) {
+
+      logout();
+
+      return;
+
+    }
+
+
+    if (!res.ok) {
+
+      const d =
+        await res
+          .json()
+          .catch(() => ({}));
+
+
+      alert(
+        d.detail ||
+        "Error al eliminar."
+      );
+
+      return;
+
+    }
+
+
+    loadPdfs();
+
+
+  } catch (e) {
+
+    alert(
+      "Error de conexión."
+    );
+
+  }
+
+}
+
+
+/* ============================================================
+   DRAG & DROP
+   ============================================================ */
+
+const dz =
+  document.getElementById(
+    "drop-zone"
+  );
+
+
+dz.addEventListener(
+  "dragover",
+  e => {
+
+    e.preventDefault();
+
+    dz.classList.add(
+      "dragover"
+    );
+
+  }
+);
+
+
+dz.addEventListener(
+  "dragleave",
+  () => {
+
+    dz.classList.remove(
+      "dragover"
+    );
+
+  }
+);
+
+
+dz.addEventListener(
+  "drop",
+  e => {
+
+    e.preventDefault();
+
+    dz.classList.remove(
+      "dragover"
+    );
+
+
+    const file =
+      e.dataTransfer.files[0];
+
+
+    if (file) {
+
+      uploadFile(file);
+
+    }
+
+  }
+);
+
+
+/* ============================================================
+   NAV ACTIVE
+   ============================================================ */
+
+document
+  .querySelectorAll(".admin-nav a")
+  .forEach(link => {
+
+    link.addEventListener(
+      "click",
+      () => {
+
+        document
+          .querySelectorAll(
+            ".admin-nav a"
+          )
+          .forEach(
+            item =>
+              item.classList.remove(
+                "active"
+              )
+          );
+
+
+        if (
+          link.getAttribute("href")
+            ?.startsWith("#")
+        ) {
+
+          link.classList.add(
+            "active"
+          );
+
+        }
+
+      }
+    );
+
+  });
+
+</script>
+
+</body>
+</html>
