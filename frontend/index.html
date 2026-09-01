@@ -704,6 +704,22 @@ function authHeaders(extra) {
   return h;
 }
 
+async function descargarPDF(cid) {
+  try {
+    const res = await fetch(`${API}/api/consulta/${cid}/pdf`, { headers: authHeaders() });
+    if (!res.ok) throw new Error("Error " + res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `agrosafety_diagnostico_${cid}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert("No se pudo descargar el PDF: " + e.message);
+  }
+}
+
 async function loadApiKey() {
   // Server-configured key always takes priority
   try {
@@ -1224,13 +1240,12 @@ if (consultaId) {
 
 
 h += `
-  <a
-    href="${API}/api/consulta/${consultaId}/pdf"
+  <button
+    onclick="descargarPDF(${consultaId})"
     class="primary-button inline-flex items-center justify-center w-full sm:w-auto px-5 rounded-xl text-sm font-semibold mb-4"
-    download
   >
     Descargar PDF
-  </a>
+  </button>
 `;
 
 
