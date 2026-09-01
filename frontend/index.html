@@ -235,21 +235,21 @@
   class="mobile-menu mt-3 pt-3 border-t border-white/20 flex-col gap-1"
 >
   <a
-    href="index.html"
+    href="/"
     class="touch-target flex items-center px-3 rounded-xl hover:bg-white/10 text-sm font-medium"
   >
     💬 Chat
   </a>
 
   <a
-    href="admin.html#historial"
+    href="/admin.html#historial"
     class="touch-target flex items-center px-3 rounded-xl hover:bg-white/10 text-sm font-medium"
   >
     📋 Historial
   </a>
 
   <a
-    href="admin.html"
+    href="/admin.html"
     class="touch-target flex items-center px-3 rounded-xl hover:bg-white/10 text-sm font-medium"
   >
     ⚙️ Administración
@@ -269,6 +269,16 @@
     class="bg-white rounded-2xl shadow-sm border p-4 sm:p-5"
     style="border-color: var(--color-border);"
   >
+
+<div id="key-panel" class="hidden mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+  <p class="text-sm font-medium text-amber-800 mb-2">Ingresá tu clave de acceso:</p>
+  <div class="flex gap-2">
+    <input id="key-input" type="password" placeholder="Clave de acceso"
+      class="flex-1 rounded-lg border border-amber-300 px-3 py-2 text-sm outline-none"
+      onkeydown="if(event.key==='Enter') saveApiKey()" />
+    <button onclick="saveApiKey()" class="primary-button px-4 rounded-lg text-sm font-semibold">Guardar</button>
+  </div>
+</div>
 
 <h2 class="font-semibold text-lg mb-1">
   Nueva consulta de seguridad agrícola
@@ -518,6 +528,7 @@
 
 const API = "";
 
+let apiKey = null;
 let consultaId = null;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -646,6 +657,49 @@ function applyBranding() {
 
   }
 
+}
+
+
+/* ============================================================
+   AUTH — API Key
+   ============================================================ */
+
+function authHeaders(extra) {
+  const h = extra || {};
+  if (apiKey) return { "X-API-Key": apiKey, ...h };
+  const tok = localStorage.getItem("access_token");
+  if (tok) return { "Authorization": `Bearer ${tok}`, ...h };
+  return h;
+}
+
+async function loadApiKey() {
+  const params = new URLSearchParams(window.location.search);
+  const urlKey = params.get("key");
+  if (urlKey) {
+    localStorage.setItem("apiKey", urlKey);
+    apiKey = urlKey;
+    params.delete("key");
+    history.replaceState({}, "", location.pathname + (params.toString() ? "?" + params : ""));
+    return;
+  }
+  const stored = localStorage.getItem("apiKey");
+  if (stored) { apiKey = stored; return; }
+  try {
+    const res = await fetch(`${API}/api/public-config`);
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.public_key) { apiKey = cfg.public_key; return; }
+    }
+  } catch (_) {}
+  show("key-panel");
+}
+
+function saveApiKey() {
+  const val = document.getElementById("key-input").value.trim();
+  if (!val) return;
+  localStorage.setItem("apiKey", val);
+  apiKey = val;
+  hide("key-panel");
 }
 
 
@@ -1326,7 +1380,8 @@ const res = await fetch(
   {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...authHeaders()
     },
     body: JSON.stringify({
       consulta_inicial: texto
@@ -1435,7 +1490,8 @@ const res = await fetch(
   {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...authHeaders()
     },
     body: JSON.stringify({
       respuesta: texto
@@ -1680,6 +1736,7 @@ try {
             "/api/voz/consulta",
             {
               method: "POST",
+              headers: authHeaders(),
               body: fd
             }
           );
@@ -1799,6 +1856,7 @@ async e => {
         "/api/consulta/imagen",
         {
           method: "POST",
+          headers: authHeaders(),
           body: fd
         }
       );
@@ -1877,6 +1935,7 @@ INICIO
 ============================================================ */
 
 loadBranding();
+loadApiKey();
 
 </script>
 

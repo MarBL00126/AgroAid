@@ -2693,6 +2693,14 @@ async def landing():
     return {"error": "Landing page not found"}
 
 
+@app.get("/admin.html")
+async def admin_page():
+    page = FRONTEND_DIR / "admin.html"
+    if page.exists():
+        return FileResponse(str(page))
+    return FileResponse(str(FRONTEND_DIR / "index.html"))
+
+
 @app.get("/api/health")
 async def health():
 
@@ -2714,6 +2722,13 @@ async def health():
             for cfg in SAFETY_DOMAINS.values()
         ],
     }
+
+
+@app.get("/api/public-config")
+async def public_config():
+    """Clave pública para el frontend (sin auth). Configurar PUBLIC_API_KEY en env."""
+    key = os.environ.get("PUBLIC_API_KEY", "")
+    return {"public_key": key}
 
 
 # ── Día 7: Stateless Risk Score ──────────────────────────────────────────────

@@ -42,26 +42,27 @@ class BrandingUpdate(BaseModel):
 async def get_branding(
     slug: str = Query(..., description="Slug del tenant"),
 ):
-    rows=db_fetch_all(
-    """
-        SELECT
-            tb.logo_url,
-            tb.primary_color,
-            tb.accent_color,
-            tb.app_name,
-            tb.footer_text
-        FROM tenant_branding tb
-        JOIN tenants t ON t.id = tb.tenant_id
-        WHERE t.slug = %s
-        """,
-        (slug,),
-    )
-    if not rows:
-        raise HTTPException(
-          status_code=404,
-            detail="Branding no encontrado",
+    _defaults = {
+        "logo_url": None,
+        "primary_color": "#15803d",
+        "accent_color": "#16a34a",
+        "app_name": "AgroAid",
+        "footer_text": "AgroAid - Seguridad agrícola integral",
+    }
+    try:
+        rows = db_fetch_all(
+            """
+                SELECT tb.logo_url, tb.primary_color, tb.accent_color,
+                       tb.app_name, tb.footer_text
+                FROM tenant_branding tb
+                JOIN tenants t ON t.id = tb.tenant_id
+                WHERE t.slug = %s
+            """,
+            (slug,),
         )
-    return rows[0]
+        return rows[0] if rows else _defaults
+    except Exception:
+        return _defaults
 @router.put("/branding")
 async def put_branding(
     data: BrandingUpdate,
