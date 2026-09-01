@@ -26,7 +26,7 @@ def _transcribir_sync(audio_bytes: bytes, mime_type: str) -> str:
         mime_type = "audio/webm"
     client = _get_client()
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-3.6-flash",
         contents=[
             types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
             "Transcribi este audio exactamente en español latinoamericano. "

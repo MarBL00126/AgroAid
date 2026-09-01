@@ -44,7 +44,7 @@ async def consulta_imagen(
     client=_get_client()
     try:
         resp=client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.6-flash",
             contents=[
                 types.Part.from_bytes(data=img_bytes, mime_type=mime),
                 LABEL_PROMPT,
