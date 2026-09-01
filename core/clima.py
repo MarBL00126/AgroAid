@@ -13,12 +13,12 @@ async def get_clima(lat:float,lon:float)->dict:
     async with httpx.AsyncClient(timeout=10.0) as client:
         response=await client.get(
             OPEN_METEO_URL,
-            params
+            params=params
         )
         response.raise_for_status()
         data=response.json()
     current=data.get("current",{})
-    daily=data.get("current",{})
+    daily=data.get("daily",{})
     forecast=[]
     dates=daily.get("time",[])
     temp_max=daily.get("temperature_2m_max",[])

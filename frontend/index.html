@@ -1819,30 +1819,43 @@ try {
         }
 
 
-        /*
-         * El endpoint de voz puede devolver
-         * distintos formatos. Si devuelve texto
-         * transcripto, lo colocamos en el textarea.
-         */
+        // Si el backend devolvió respuesta completa, renderizarla directamente
+        if (data.consulta_id) {
 
-        const texto =
-          data.texto ||
-          data.transcripcion ||
-          data.transcript ||
-          data.text;
+          consultaId = data.consulta_id;
 
+          status.textContent = "Consulta procesada";
 
-        if (texto) {
+          appendThread(renderIter(data));
 
-          document
-            .getElementById("consulta-input")
-            .value = texto;
+          if (data.completado) {
+
+            renderFinal(data);
+
+          } else {
+
+            show("answer-panel");
+            hide("form-panel");
+            document.getElementById("answer-input").focus();
+
+          }
+
+        } else {
+
+          // Fallback: solo transcripción, poner en textarea
+          const texto =
+            data.texto ||
+            data.transcripcion ||
+            data.transcript ||
+            data.text;
+
+          if (texto) {
+            document.getElementById("consulta-input").value = texto;
+          }
+
+          status.textContent = "Consulta transcripta";
 
         }
-
-
-        status.textContent =
-          "Consulta transcripta";
 
       } catch (error) {
 

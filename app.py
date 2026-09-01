@@ -606,11 +606,11 @@ def registrar_auditoria(
     )
 
     logger.info(
-        "AUDIT | consulta=%s iter=%s accion=%s",
+        "AUDIT | consulta=%s iter=%s accion=%s prev=%s",
         cid,
         it,
         accion,
-        prev_hash
+        prev_hash,
     )
 
 
