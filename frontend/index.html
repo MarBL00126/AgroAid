@@ -235,6 +235,13 @@
   class="mobile-menu mt-3 pt-3 border-t border-white/20 flex-col gap-1"
 >
   <a
+    href="/landing"
+    class="touch-target flex items-center px-3 rounded-xl hover:bg-white/10 text-sm font-medium"
+  >
+    🌐 Landing
+  </a>
+
+  <a
     href="/"
     class="touch-target flex items-center px-3 rounded-xl hover:bg-white/10 text-sm font-medium"
   >
@@ -278,6 +285,18 @@
       onkeydown="if(event.key==='Enter') saveApiKey()" />
     <button onclick="saveApiKey()" class="primary-button px-4 rounded-lg text-sm font-semibold">Guardar</button>
   </div>
+</div>
+
+<div id="wa-banner" class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+  <span class="text-2xl">&#x1F4F1;</span>
+  <div class="flex-1 min-w-0">
+    <p class="text-sm font-semibold text-green-800">También podés consultar por WhatsApp</p>
+    <p class="text-xs text-green-700">Enviá tu consulta directo desde tu celular</p>
+  </div>
+  <a id="wa-link" href="#" target="_blank" rel="noopener"
+    class="shrink-0 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-3 py-2 rounded-lg">
+    Abrir chat
+  </a>
 </div>
 
 <h2 class="font-semibold text-lg mb-1">
@@ -391,8 +410,20 @@
     style="color: var(--color-muted);"
   ></span>
 
-</div>
+  <!-- UBICACIÓN / CLIMA -->
+  <button
+    id="loc-btn"
+    type="button"
+    class="tool-button text-xl"
+    title="Incluir clima local"
+    aria-label="Usar mi ubicación para datos de clima"
+    onclick="toggleLocation()"
+  >
+    📍
+  </button>
+  <span id="loc-status" class="text-xs" style="color: var(--color-muted);"></span>
 
+</div>
 
 <!-- BOTÓN EVALUAR -->
 <div class="flex flex-col sm:flex-row sm:items-center gap-3 mt-4">
@@ -532,6 +563,7 @@ let apiKey = null;
 let consultaId = null;
 let mediaRecorder = null;
 let audioChunks = [];
+let userLocation = null; // {lat, lon} captured by geolocation button
 
 let currentBranding = {
   logo_url: null,
@@ -678,7 +710,13 @@ async function loadApiKey() {
     const res = await fetch(`${API}/api/public-config`);
     if (res.ok) {
       const cfg = await res.json();
-      if (cfg.public_key) { apiKey = cfg.public_key; return; }
+      if (cfg.public_key) { apiKey = cfg.public_key; }
+      if (cfg.whatsapp_number) {
+        const num = cfg.whatsapp_number.replace(/\D/g, "");
+        document.getElementById("wa-link").href = `https://wa.me/${num}`;
+        document.getElementById("wa-banner").classList.remove("hidden");
+      }
+      if (apiKey) return;
     }
   } catch (_) {}
 
@@ -1351,6 +1389,27 @@ behavior: "smooth"
 CONSULTA INICIAL
 ============================================================ */
 
+function toggleLocation() {
+  const btn = document.getElementById("loc-btn");
+  const status = document.getElementById("loc-status");
+  if (userLocation) {
+    userLocation = null;
+    btn.classList.remove("recording");
+    status.textContent = "";
+    return;
+  }
+  if (!navigator.geolocation) { status.textContent = "No soportado"; return; }
+  status.textContent = "Obteniendo...";
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      btn.classList.add("recording");
+      status.textContent = `${userLocation.lat.toFixed(2)}, ${userLocation.lon.toFixed(2)}`;
+    },
+    () => { status.textContent = "Sin permiso"; }
+  );
+}
+
 async function iniciarConsulta() {
 
 const texto =
@@ -1386,7 +1445,8 @@ const res = await fetch(
       ...authHeaders()
     },
     body: JSON.stringify({
-      consulta_inicial: texto
+      consulta_inicial: texto,
+      ...(userLocation ? { lat: userLocation.lat, lon: userLocation.lon } : {})
     })
   }
 );

@@ -1,7 +1,6 @@
+from __future__ import annotations
 import os
 import logging
-
-import psycopg2
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
@@ -9,477 +8,205 @@ from fastapi.responses import Response
 from twilio.request_validator import RequestValidator
 from twilio.twiml.messaging_response import MessagingResponse
 from routers.voz import _transcribir_bytes
+from core.database import db_fetch_one, get_conn
 import httpx
-router = APIRouter(
-    prefix="/api/whatsapp",
-    tags=["whatsapp"],
-)
+
+router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 logger = logging.getLogger("agrosafety.whatsapp")
-def get_db_connection():
-    return psycopg2.connect(
-        host=os.environ.get("DB_HOST", "localhost"),
-        port=int(os.environ.get("DB_PORT", 5432)),
-        database=os.environ.get("DB_NAME", "agrosafety"),
-        user=os.environ.get("DB_USER", "postgres"),
-        password=os.environ.get("DB_PASSWORD", ""),
+
+
+def _get_tenant_info(phone: str):
+    """Returns (tenant_id, tenant_slug) for the phone, falling back to default tenant."""
+    row = db_fetch_one(
+        """
+        SELECT u.tenant_id, t.slug
+        FROM users u
+        JOIN tenants t ON t.id = u.tenant_id
+        WHERE u.whatsapp = %s
+        LIMIT 1
+        """,
+        (phone,),
+    )
+    if row:
+        return row["tenant_id"], row["slug"]
+    # Unknown number → use default tenant so anyone can consult
+    default = db_fetch_one("SELECT id, slug FROM tenants WHERE slug = 'default' LIMIT 1")
+    if default:
+        return default["id"], default["slug"]
+    return None
+
+
+def _get_session(phone: str):
+    return db_fetch_one(
+        "SELECT phone, consulta_id, state, tenant_id FROM whatsapp_sessions WHERE phone = %s",
+        (phone,),
     )
 
-def get_tenant_by_phone(phone:str):
-    """
-    Busca el usuario asociado al número de WhatsApp
-    y obtiene su tenant.
-    """
-    conn=get_db_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                 """
-                SELECT tenant_id
-                FROM users
-                WHERE whatsapp = %s
-                LIMIT 1
-                """,
-                (phone,)
-            )
-            row=cur.fetchone()
-            if not row:
-                return None
-            return row[0]
-    finally:
-        conn.close()
-def get_whatsapp_session(phone: str):
-    conn = get_db_connection()
 
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT phone, consulta_id, state, tenant_id
-                FROM whatsapp_sessions
-                WHERE phone = %s
-                """,
-                (phone,),
-            )
-
-            row = cur.fetchone()
-
-            if not row:
-                return None
-
-            return {
-                "phone": row[0],
-                "consulta_id": row[1],
-                "state": row[2],
-                "tenant_id": row[3],
-            }
-
-    finally:
-        conn.close()
-def create_whatsapp_session(
-    phone: str,
-    consulta_id: int,
-    tenant_id: int,
-):
-    conn = get_db_connection()
-
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO whatsapp_sessions (
-                    phone,
-                    consulta_id,
-                    state,
-                    tenant_id
+def _upsert_session(phone: str, consulta_id: int, tenant_id: int) -> None:
+    with get_conn() as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO whatsapp_sessions (phone, consulta_id, state, tenant_id)
+                    VALUES (%s, %s, 'in_progress', %s)
+                    ON CONFLICT (phone) DO UPDATE SET
+                        consulta_id = EXCLUDED.consulta_id,
+                        state       = 'in_progress',
+                        tenant_id   = EXCLUDED.tenant_id,
+                        updated_at  = NOW()
+                    """,
+                    (phone, consulta_id, tenant_id),
                 )
-                VALUES (%s, %s, 'in_progress', %s)
-                ON CONFLICT (phone)
-                DO UPDATE SET
-                    consulta_id = EXCLUDED.consulta_id,
-                    state = 'in_progress',
-                    tenant_id = EXCLUDED.tenant_id,
-                    updated_at = NOW()
-                """,
-                (
-                    phone,
-                    consulta_id,
-                    tenant_id,
-                ),
-            )
-
-        conn.commit()
-
-    except Exception:
-        conn.rollback()
-        raise
-
-    finally:
-        conn.close()
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
-def update_whatsapp_session(
-    phone: str,
-    state: str,
-    consulta_id: int | None = None,
-):
-    conn = get_db_connection()
+def _clear_session(phone: str) -> None:
+    with get_conn() as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE whatsapp_sessions SET state='idle', consulta_id=NULL, updated_at=NOW() WHERE phone=%s",
+                    (phone,),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE whatsapp_sessions
-                SET
-                    state = %s,
-                    consulta_id = %s,
-                    updated_at = NOW()
-                WHERE phone = %s
-                """,
-                (
-                    state,
-                    consulta_id,
-                    phone,
-                ),
-            )
 
-        conn.commit()
+def _twiml(message: str) -> Response:
+    resp = MessagingResponse()
+    resp.message(message)
+    return Response(content=str(resp), media_type="application/xml")
 
-    except Exception:
-        conn.rollback()
-        raise
 
-    finally:
-        conn.close()
-def twiml_response(message:str)->Response:
-    response=MessagingResponse()
-    response.message(message)
-    return Response(
-        content=str(response),
-        media_type="application/xml"
-    )
 @router.post("/webhook")
-async def whatsapp_webhook(request:Request):
-    # ---------------------------------------------------------
-    # 1. Leer formulario enviado por Twilio
-    # ---------------------------------------------------------
-    form=await request.form()
-    phone=str(form.get("From","")).strip()
-    body=str(form.get("Body","")).strip()
+async def whatsapp_webhook(request: Request):
+    form = await request.form()
+    phone = str(form.get("From", "")).strip()
+    body = str(form.get("Body", "")).strip()
     media_url = form.get("MediaUrl0")
-    media_type = form.get(
-    "MediaContentType0",
-    "audio/ogg",
-    )
+    media_type = str(form.get("MediaContentType0", "audio/ogg"))
+
     if not phone:
-        raise HTTPException(
-            status_code=400,
-            detail="Missing From",
-        )
-    if not body:
-        return twiml_response(
-            "No recibí ningún mensaje. Por favor escribí tu consulta."
-        )
-    # ---------------------------------------------------------
-    # 2. Validar firma de Twilio
-    # ---------------------------------------------------------
+        raise HTTPException(status_code=400, detail="Missing From")
 
-    auth_token=os.environ.get("TWILIO_AUTH_TOKEN")
+    # Validate Twilio signature
+    auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
     if not auth_token:
-        logger.error("TWILIO_AUTH_TOKEN no está configurado.")
-        raise HTTPException(
-            status_code=500,
-            detail="Twilio Auth Token no configurado.",
-        )
-    validator=RequestValidator(auth_token)
-    signature = request.headers.get(
-        "X-Twilio-Signature",
-        "",
-    )
-    is_valid=validator.validate(
-        str(request.url),
-        dict(form),
-        signature
-    )
-    if not is_valid:
-        logger.warning(
-            "Firma Twilio inválida desde %s",
-            phone,
-        )
+        raise HTTPException(status_code=500, detail="TWILIO_AUTH_TOKEN no configurado")
 
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid Twilio signature",
-        )
-    if media_url and media_type and media_type.startswith("audio"):
-        sid  = os.environ["TWILIO_ACCOUNT_SID"]
-        tok  = os.environ["TWILIO_AUTH_TOKEN"]
-        async with httpx.AsyncClient(auth=(sid, tok), timeout=30) as client:
-            audio_resp = await client.get(media_url)
-        audio_bytes=audio_resp.content
-        body=await _transcribir_bytes(audio_bytes, media_type)
+    validator = RequestValidator(auth_token)
+    if not validator.validate(str(request.url), dict(form), request.headers.get("X-Twilio-Signature", "")):
+        raise HTTPException(status_code=403, detail="Invalid Twilio signature")
 
-        
+    # Transcribe audio BEFORE the empty-body check
+    if media_url and media_type.startswith("audio"):
+        try:
+            sid = os.environ["TWILIO_ACCOUNT_SID"]
+            async with httpx.AsyncClient(auth=(sid, auth_token), timeout=30) as client:
+                audio_resp = await client.get(media_url)
+            body = await _transcribir_bytes(audio_resp.content, media_type)
+        except Exception as exc:
+            logger.warning("No se pudo transcribir audio de %s: %s", phone, exc)
 
-    # ---------------------------------------------------------
-    # 3. Identificar tenant
-    # ---------------------------------------------------------
-    tenant_id = get_tenant_by_phone(phone)
+    if not body:
+        return _twiml("No recibi ningun mensaje. Por favor escribi tu consulta.")
 
-    if tenant_id is None:
-        return twiml_response(
-            "Este número de WhatsApp no está registrado. "
-            "Contactá al administrador de AgroSafety."
-        )
-    # ---------------------------------------------------------
-    # 4. Import local para evitar circular import
-    # ---------------------------------------------------------
+    # Resolve tenant
+    tenant_info = _get_tenant_info(phone)
+    if tenant_info is None:
+        return _twiml("El servicio no esta disponible en este momento. Intenta mas tarde.")
+    tenant_id, tenant_slug = tenant_info
 
+    # Import here to avoid circular imports at module load
     from app import (
-        _sessions,
-        _to_response,
-        crear_consulta,
-        registrar_auditoria,
-        _run_iteration,
-        SessionState,
+        SessionState, _sessions, _to_response,
+        crear_consulta, registrar_auditoria,
+        _run_iteration, guardar_respuesta,
     )
-    # ---------------------------------------------------------
-    # 5. Buscar sesión WhatsApp
-    # ---------------------------------------------------------
-    session_data=get_whatsapp_session(phone)
-    # =========================================================
-    # CASO A — NO EXISTE SESIÓN / IDLE
-    # =========================================================
-    if (
-        session_data is None
-        or session_data["state"] == "idle"
-        or session_data["consulta_id"] is None
-    ):
 
-        consulta_id = crear_consulta(body)
+    session_data = _get_session(phone)
+
+    # ── CASO A: nueva consulta ────────────────────────────────────────────────
+    if session_data is None or session_data["state"] == "idle" or not session_data.get("consulta_id"):
+        consulta_id = crear_consulta(body, tenant_slug)
 
         session = SessionState(
             consulta_id=consulta_id,
+            tenant_slug=tenant_slug,
             umbral_confianza=80,
             max_iteraciones=5,
         )
-
-        session.historial_consulta.append(
-            f"CONSULTA INICIAL: {body}"
-        )
-
-        registrar_auditoria(
-            consulta_id,
-            0,
-            "CONSULTA_INICIAL_WHATSAPP",
-            {
-                "phone": phone,
-                "tenant_id": tenant_id,
-                "consulta": body,
-            },
-        )
+        session.historial_consulta.append(f"CONSULTA INICIAL: {body}")
+        registrar_auditoria(consulta_id, 0, "CONSULTA_INICIAL_WHATSAPP",
+                            {"phone": phone, "tenant_id": tenant_id, "consulta": body})
 
         await _run_iteration(session)
-
         _sessions[consulta_id] = session
-
-        create_whatsapp_session(
-            phone=phone,
-            consulta_id=consulta_id,
-            tenant_id=tenant_id,
-        )
+        _upsert_session(phone, consulta_id, tenant_id)
 
         result = _to_response(session)
-
-        # -----------------------------------------------------
-        # Si ya terminó en la primera evaluación
-        # -----------------------------------------------------
-
         if result["completado"]:
+            _clear_session(phone)
+            return _twiml(result.get("evaluacion_final") or result.get("justificacion") or "Evaluacion finalizada.")
 
-            update_whatsapp_session(
-                phone=phone,
-                state="idle",
-                consulta_id=None,
-            )
-
-            return twiml_response(
-                result.get("evaluacion_final")
-                or result.get("justificacion")
-                or "La evaluación ha finalizado."
-            )
-
-        # -----------------------------------------------------
-        # Continuar con preguntas
-        # -----------------------------------------------------
-
-        questions = result.get(
-            "preguntas_seguimiento",
-            [],
-        )
-
+        questions = result.get("preguntas_seguimiento", [])
         if not questions:
-            return twiml_response(
-                "Estoy procesando tu consulta. "
-                "Por favor esperá unos instantes."
-            )
+            return _twiml("Procesando tu consulta.")
 
-        message = (
-            "🌱 *AgroSafety*\n\n"
-            "Recibí tu consulta.\n\n"
-            "Necesito algunos datos adicionales:\n\n"
-        )
+        msg = "AgroSafety\n\nRecibi tu consulta.\nNecesito algunos datos:\n\n"
+        for i, q in enumerate(questions, 1):
+            msg += f"{i}. {q}\n"
+        return _twiml(msg)
 
-        for i, question in enumerate(
-            questions,
-            start=1,
-        ):
-            message += f"{i}. {question}\n"
-
-        return twiml_response(message)
-
-    # =========================================================
-    # CASO B — SESIÓN EN PROGRESO
-    # =========================================================
-
+    # ── CASO B: sesion en progreso ────────────────────────────────────────────
     consulta_id = session_data["consulta_id"]
-
     session = _sessions.get(consulta_id)
 
     if session is None:
-        logger.error(
-            "Sesión %s no encontrada en memoria para WhatsApp %s",
-            consulta_id,
-            phone,
-        )
-
-        update_whatsapp_session(
-            phone=phone,
-            state="idle",
-            consulta_id=None,
-        )
-
-        return twiml_response(
-            "La sesión anterior ya no está disponible. "
-            "Por favor enviá nuevamente tu consulta."
-        )
+        # Server restarted — in-memory session lost
+        logger.warning("Session %s no esta en memoria (reinicio de servidor)", consulta_id)
+        _clear_session(phone)
+        return _twiml("La sesion anterior no esta disponible (el servidor se reinicio). Envia tu consulta de nuevo.")
 
     if session.completado:
+        _clear_session(phone)
+        return _twiml(session.evaluacion_final or "La evaluacion ya fue completada.")
 
-        update_whatsapp_session(
-            phone=phone,
-            state="idle",
-            consulta_id=None,
-        )
-
-        return twiml_response(
-            session.evaluacion_final
-            or "La evaluación ya fue completada."
-        )
-
-    # ---------------------------------------------------------
-    # Guardar respuesta
-    # ---------------------------------------------------------
-
-    preguntas = (
-        session.ultima_evaluacion or {}
-    ).get(
-        "preguntas_seguimiento",
-        [],
-    )
-
-    from app import (
-        guardar_respuesta,
-    )
-
-    guardar_respuesta(
-        consulta_id,
-        session.iteracion_actual,
-        preguntas,
-        body,
-        session.confianza_final,
-        session.riesgo_final,
-    )
-
-    registrar_auditoria(
-        consulta_id,
-        session.iteracion_actual,
-        "RESPUESTA_USUARIO_WHATSAPP",
-        {
-            "phone": phone,
-            "tenant_id": tenant_id,
-            "respuesta": body,
-        },
-    )
-
-    session.historial_consulta.append(
-        f"Respuesta iteración "
-        f"{session.iteracion_actual}: {body}"
-    )
-
-    session.historial_respuestas.append(
-        {
-            "iteracion": session.iteracion_actual,
-            "preguntas": preguntas,
-            "respuesta": body,
-        }
-    )
-
+    preguntas = (session.ultima_evaluacion or {}).get("preguntas_seguimiento", [])
+    guardar_respuesta(consulta_id, session.iteracion_actual, preguntas, body,
+                      session.confianza_final, session.riesgo_final)
+    registrar_auditoria(consulta_id, session.iteracion_actual, "RESPUESTA_USUARIO_WHATSAPP",
+                        {"phone": phone, "respuesta": body})
+    session.historial_consulta.append(f"Respuesta iteracion {session.iteracion_actual}: {body}")
+    session.historial_respuestas.append({
+        "iteracion": session.iteracion_actual,
+        "preguntas": preguntas,
+        "respuesta": body,
+    })
     session.iteracion_actual += 1
 
-    # ---------------------------------------------------------
-    # Ejecutar siguiente evaluación
-    # ---------------------------------------------------------
-
     await _run_iteration(session)
-
     result = _to_response(session)
 
-    # =========================================================
-    # CASO C — FINALIZÓ
-    # =========================================================
-
+    # ── CASO C: finalizo ──────────────────────────────────────────────────────
     if result["completado"]:
+        _clear_session(phone)
+        final = result.get("evaluacion_final") or result.get("justificacion") or "Evaluacion finalizada."
+        return _twiml(f"AgroSafety - Evaluacion final\n\n{final}")
 
-        update_whatsapp_session(
-            phone=phone,
-            state="idle",
-            consulta_id=None,
-        )
-
-        final_text = (
-            result.get("evaluacion_final")
-            or result.get("justificacion")
-            or "La evaluación ha finalizado."
-        )
-
-        return twiml_response(
-            "🌱 *AgroSafety — Evaluación final*\n\n"
-            + final_text
-        )
-
-    # =========================================================
-    # CASO D — SIGUE PREGUNTANDO
-    # =========================================================
-
-    questions = result.get(
-        "preguntas_seguimiento",
-        [],
-    )
-
+    # ── CASO D: sigue preguntando ─────────────────────────────────────────────
+    questions = result.get("preguntas_seguimiento", [])
     if not questions:
-        return twiml_response(
-            "Necesito más información para continuar "
-            "con una evaluación segura."
-        )
+        return _twiml("Necesito mas informacion para continuar.")
 
-    message = (
-        "Gracias. Necesito algunos datos más:\n\n"
-    )
-
-    for i, question in enumerate(
-        questions,
-        start=1,
-    ):
-        message += f"{i}. {question}\n"
-
-    return twiml_response(message)
+    msg = "Gracias. Necesito algunos datos mas:\n\n"
+    for i, q in enumerate(questions, 1):
+        msg += f"{i}. {q}\n"
+    return _twiml(msg)

@@ -834,13 +834,25 @@
 
 <div id="login-error"></div>
 
-
 <button
   id="login-btn"
   onclick="doLogin()"
 >
   Ingresar
 </button>
+
+<p style="text-align:center;margin:10px 0 4px;font-size:.8rem;color:#6b7280">¿Primera vez? Creá tu cuenta admin</p>
+
+<details id="register-section" style="margin-top:4px">
+  <summary style="cursor:pointer;font-size:.82rem;color:#15803d;text-align:center">Registrarse</summary>
+  <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+    <input type="text"  id="reg-username" placeholder="Usuario"            style="padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem" />
+    <input type="email" id="reg-email"    placeholder="Email"               style="padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem" />
+    <input type="password" id="reg-password" placeholder="Contraseña"      style="padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem" />
+    <div id="register-error" style="color:#dc2626;font-size:.82rem;min-height:1.2em"></div>
+    <button onclick="doRegister()" style="background:#15803d;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer">Crear cuenta</button>
+  </div>
+</details>
 
 
   </div>
@@ -1826,9 +1838,28 @@ document
   );
 
 
-/* ============================================================
-   AUTH
-   ============================================================ */
+async function doRegister() {
+  const username = document.getElementById("reg-username").value.trim();
+  const email    = document.getElementById("reg-email").value.trim();
+  const password = document.getElementById("reg-password").value;
+  const errEl    = document.getElementById("register-error");
+  errEl.textContent = "";
+  if (!username || !email || !password) { errEl.textContent = "Completá todos los campos."; return; }
+  try {
+    const res = await fetch("/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, email, password, tenant_slug: "default" }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { errEl.textContent = d.detail || "Error al registrar."; return; }
+    // Auto-login after register
+    document.getElementById("login-email").value = email;
+    document.getElementById("login-password").value = password;
+    document.getElementById("register-section").removeAttribute("open");
+    await doLogin();
+  } catch (e) { errEl.textContent = "Error de conexión."; }
+}
 
 async function doLogin() {
 

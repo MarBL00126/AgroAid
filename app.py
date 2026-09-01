@@ -2726,9 +2726,13 @@ async def health():
 
 @app.get("/api/public-config")
 async def public_config():
-    """Clave pública para el frontend (sin auth). Configurar PUBLIC_API_KEY en env."""
-    key = os.environ.get("PUBLIC_API_KEY", "")
-    return {"public_key": key}
+    """Configuracion publica para el frontend (sin auth)."""
+    raw = os.environ.get("TWILIO_WHATSAPP_FROM", "")  # e.g. "whatsapp:+14155238886"
+    wa_number = raw.replace("whatsapp:", "").strip()
+    return {
+        "public_key": os.environ.get("PUBLIC_API_KEY", ""),
+        "whatsapp_number": wa_number,
+    }
 
 
 # ── Día 7: Stateless Risk Score ──────────────────────────────────────────────

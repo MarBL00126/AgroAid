@@ -45,6 +45,7 @@ def get_current_user(
                 "email": None,
                 "role": "user",
                 "tenant_id": 1,
+                "tenant_slug": "default",
                 "auth_type": "public_key",
             }
 
@@ -73,12 +74,22 @@ def get_current_user(
                     detail="API Key expirada",
                 )
 
+            tid = stored_key.get("tenant_id")
+            slug = None
+            if tid:
+                try:
+                    row = db_fetch_one("SELECT slug FROM tenants WHERE id = %s", (tid,))
+                    slug = row["slug"] if row else None
+                except Exception:
+                    pass
+
             return {
                 "id": None,
                 "username": stored_key["name"],
                 "email": None,
                 "role": "admin",
-                "tenant_id": stored_key.get("tenant_id"),
+                "tenant_id": tid,
+                "tenant_slug": slug or "default",
                 "auth_type": "api_key",
             }
 
@@ -116,9 +127,11 @@ def get_current_user(
     try:
         user = db_fetch_one(
             """
-            SELECT id, username, email, role, tenant_id
-            FROM users
-            WHERE id = %s
+            SELECT u.id, u.username, u.email, u.role, u.tenant_id,
+                   t.slug AS tenant_slug
+            FROM users u
+            LEFT JOIN tenants t ON t.id = u.tenant_id
+            WHERE u.id = %s
             """,
             (int(user_id),),
         )
