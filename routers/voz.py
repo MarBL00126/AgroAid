@@ -5,7 +5,6 @@ from google import genai
 from google.genai import types
 from core.deps import require_any
 from fastapi import Request as FastAPIRequest
-from routers.voz import _transcribir_bytes   # o en el mismo archivo
 router=APIRouter(
     prefix="/api/voz",
     tags=["Voz"]
