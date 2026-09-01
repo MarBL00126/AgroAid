@@ -1805,7 +1805,8 @@ try {
 
 
         const data =
-          await res.json();
+          await res.json()
+            .catch(() => ({ detail: res.statusText || "Error del servidor" }));
 
 
         if (!res.ok) {
