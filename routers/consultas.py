@@ -121,9 +121,13 @@ def _load_owned_session(
 
     session = cargar_session_state(consulta_id)
 
+    guest_id = current_user.get("guest_id")
+
     if (
         session is None
         or session.tenant_slug != _user_tenant_slug(current_user)
+        # Un invitado solo accede a las consultas de su propia sesión
+        or (guest_id is not None and session.owner != guest_id)
     ):
 
         raise HTTPException(
@@ -178,6 +182,8 @@ async def iniciar_consulta(
         umbral_confianza=req.umbral_confianza,
 
         max_iteraciones=req.max_iteraciones,
+
+        owner=current_user.get("guest_id"),
     )
 
     session.historial_consulta.append(

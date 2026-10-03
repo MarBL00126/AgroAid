@@ -67,6 +67,8 @@ class SessionState:
     umbral_confianza: int = 80
     max_iteraciones: int = 5
 
+    # Identificador de la sesión de invitado que creó la consulta (None si fue un usuario registrado)
+    owner: Optional[str] = None
 
 # ── Persistencia de la sesión ─────────────────────────────────────────────────
 

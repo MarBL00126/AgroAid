@@ -25,3 +25,7 @@ RATE_LIMIT_CONSULTA = os.environ.get("RATE_LIMIT_CONSULTA", "5/minute")
 RATE_LIMIT_RESPONDER = os.environ.get("RATE_LIMIT_RESPONDER", "20/minute")
 RATE_LIMIT_MULTIMEDIA = os.environ.get("RATE_LIMIT_MULTIMEDIA", "5/minute")
 RATE_LIMIT_RISK_SCORE = os.environ.get("RATE_LIMIT_RISK_SCORE", "10/minute")
+RATE_LIMIT_GUEST = os.environ.get("RATE_LIMIT_GUEST", "20/minute")
+
+# Duración de la sesión de invitado del chat público (minutos).
+GUEST_TOKEN_MINUTES = int(os.environ.get("GUEST_TOKEN_MINUTES", "360"))

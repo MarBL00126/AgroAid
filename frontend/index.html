@@ -277,16 +277,6 @@
     style="border-color: var(--color-border);"
   >
 
-<div id="key-panel" class="hidden mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-  <p class="text-sm font-medium text-amber-800 mb-2">Ingresá tu clave de acceso:</p>
-  <div class="flex gap-2">
-    <input id="key-input" type="password" placeholder="Clave de acceso"
-      class="flex-1 rounded-lg border border-amber-300 px-3 py-2 text-sm outline-none"
-      onkeydown="if(event.key==='Enter') saveApiKey()" />
-    <button onclick="saveApiKey()" class="primary-button px-4 rounded-lg text-sm font-semibold">Guardar</button>
-  </div>
-</div>
-
 <div id="wa-banner" class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
   <span class="text-2xl">&#x1F4F1;</span>
   <div class="flex-1 min-w-0">
@@ -559,7 +549,6 @@
 
 const API = "";
 
-let apiKey = null;
 let consultaId = null;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -693,20 +682,61 @@ function applyBranding() {
 
 
 /* ============================================================
-   AUTH — API Key
+   AUTH — sesión de invitado
    ============================================================ */
 
-function authHeaders(extra) {
-  const h = extra || {};
-  if (apiKey) return { "X-API-Key": apiKey, ...h };
-  const tok = localStorage.getItem("access_token");
-  if (tok) return { "Authorization": `Bearer ${tok}`, ...h };
-  return h;
+const GUEST_KEY = "guest_token";
+
+function tokenValid(token) {
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return !payload.exp || payload.exp * 1000 > Date.now() + 60000;
+  } catch (_) {
+    return false;
+  }
+}
+
+function currentToken() {
+  // Sesión iniciada (login) tiene prioridad; si no, la sesión de invitado
+  const login = localStorage.getItem("access_token");
+  if (tokenValid(login)) return login;
+  const guest = localStorage.getItem(GUEST_KEY);
+  return tokenValid(guest) ? guest : null;
+}
+
+async function ensureAuth(force) {
+  if (!force && currentToken()) return;
+  localStorage.removeItem(GUEST_KEY);
+  const res = await fetch(`${API}/auth/guest`, { method: "POST" });
+  if (!res.ok) throw new Error("No se pudo iniciar la sesión (" + res.status + ")");
+  const data = await res.json();
+  localStorage.setItem(GUEST_KEY, data.access_token);
+}
+
+// fetch con Authorization automático; si el token venció, renueva la sesión de invitado y reintenta una vez
+async function authFetch(url, options) {
+  const opts = options || {};
+  const send = () => {
+    const headers = { ...(opts.headers || {}) };
+    const tok = currentToken();
+    if (tok) headers["Authorization"] = "Bearer " + tok;
+    return fetch(url, { ...opts, headers });
+  };
+
+  await ensureAuth(false);
+  let res = await send();
+  if (res.status === 401) {
+    localStorage.removeItem("access_token");
+    await ensureAuth(true);
+    res = await send();
+  }
+  return res;
 }
 
 async function descargarPDF(cid) {
   try {
-    const res = await fetch(`${API}/api/consulta/${cid}/pdf`, { headers: authHeaders() });
+    const res = await authFetch(`${API}/api/consulta/${cid}/pdf`);
     if (!res.ok) throw new Error("Error " + res.status);
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -720,42 +750,18 @@ async function descargarPDF(cid) {
   }
 }
 
-async function loadApiKey() {
-  // Server-configured key always takes priority
+async function loadPublicConfig() {
   try {
     const res = await fetch(`${API}/api/public-config`);
     if (res.ok) {
       const cfg = await res.json();
-      if (cfg.public_key) { apiKey = cfg.public_key; }
       if (cfg.whatsapp_number) {
         const num = cfg.whatsapp_number.replace(/\D/g, "");
         document.getElementById("wa-link").href = `https://wa.me/${num}`;
         document.getElementById("wa-banner").classList.remove("hidden");
       }
-      if (apiKey) return;
     }
   } catch (_) {}
-
-  const params = new URLSearchParams(window.location.search);
-  const urlKey = params.get("key");
-  if (urlKey) {
-    localStorage.setItem("apiKey", urlKey);
-    apiKey = urlKey;
-    params.delete("key");
-    history.replaceState({}, "", location.pathname + (params.toString() ? "?" + params : ""));
-    return;
-  }
-  const stored = localStorage.getItem("apiKey");
-  if (stored) { apiKey = stored; return; }
-  show("key-panel");
-}
-
-function saveApiKey() {
-  const val = document.getElementById("key-input").value.trim();
-  if (!val) return;
-  localStorage.setItem("apiKey", val);
-  apiKey = val;
-  hide("key-panel");
 }
 
 
@@ -1363,7 +1369,7 @@ async function reiniciarConsulta() {
   }
   const originalQuery = document.getElementById("consulta-input").value;
   try {
-    await fetch(`${API}/api/consulta/${consultaId}`, { method: "DELETE" });
+    await authFetch(`${API}/api/consulta/${consultaId}`, { method: "DELETE" });
   } catch (_) { /* ignore */ }
   nuevaConsulta();
   if (originalQuery) {
@@ -1451,13 +1457,12 @@ userBubble("Tu consulta", texto)
 try {
 
 
-const res = await fetch(
+const res = await authFetch(
   `${API}/api/consulta`,
   {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      ...authHeaders()
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
       consulta_inicial: texto,
@@ -1562,13 +1567,12 @@ userBubble("Tu respuesta", texto)
 try {
 
 
-const res = await fetch(
+const res = await authFetch(
   `${API}/api/consulta/${consultaId}/responder`,
   {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      ...authHeaders()
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
       respuesta: texto
@@ -1809,11 +1813,10 @@ try {
       try {
 
         const res =
-          await fetch(
+          await authFetch(
             "/api/voz/consulta",
             {
               method: "POST",
-              headers: authHeaders(),
               body: fd
             }
           );
@@ -1943,11 +1946,10 @@ async e => {
   try {
 
     const res =
-      await fetch(
+      await authFetch(
         "/api/consulta/imagen",
         {
           method: "POST",
-          headers: authHeaders(),
           body: fd
         }
       );
@@ -2026,7 +2028,8 @@ INICIO
 ============================================================ */
 
 loadBranding();
-loadApiKey();
+loadPublicConfig();
+ensureAuth().catch(() => {});
 
 </script>
 

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
+from core.config import GUEST_TOKEN_MINUTES, RATE_LIMIT_GUEST
 from core.database import db_fetch_one, db_fetch_val, get_conn, get_tenant_id
 from core.deps import bearer_scheme
+from core.limiter import limiter
 from core.security import (
     create_access_token,
     create_refresh_token,
@@ -214,6 +218,33 @@ def refresh(req: RefreshRequest):
     return {
         "access_token": create_access_token(token_data),
         "token_type": "bearer",
+    }
+
+
+@router.post("/guest")
+@limiter.limit(RATE_LIMIT_GUEST)
+def guest_session(request: Request):
+    """Sesión anónima para el chat público: JWT de corta vida, rol user, tenant default."""
+    try:
+        tenant_id = get_tenant_id("default")
+    except RuntimeError as exc:
+        raise _db_unavailable(exc) from exc
+
+    guest_id = uuid4().hex
+    token = create_access_token(
+        {
+            "sub": f"guest:{guest_id}",
+            "guest": True,
+            "role": "user",
+            "tenant_id": tenant_id,
+        },
+        expires_minutes=GUEST_TOKEN_MINUTES,
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": GUEST_TOKEN_MINUTES * 60,
     }
 
 

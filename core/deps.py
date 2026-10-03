@@ -137,6 +137,19 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if payload.get("guest") is True:
+        # Sesión anónima del chat público: no existe fila en users.
+        return {
+            "id": None,
+            "username": "guest",
+            "email": None,
+            "role": "user",
+            "tenant_id": payload.get("tenant_id"),
+            "tenant_slug": "default",
+            "auth_type": "guest",
+            "guest_id": str(user_id),
+        }
+
     try:
         user = db_fetch_one(
             """
