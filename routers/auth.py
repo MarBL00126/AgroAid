@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel
 
 from core.database import db_fetch_one, db_fetch_val, get_conn, get_tenant_id
+from core.deps import bearer_scheme
 from core.security import (
     create_access_token,
     create_refresh_token,
@@ -11,6 +13,7 @@ from core.security import (
     hash_password,
     verify_password,
 )
+from core.token_blacklist import is_revoked, purge_expired, revoke_token
 
 router = APIRouter(
     prefix="/auth",
@@ -37,6 +40,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = None
+
+
 def _db_unavailable(exc: Exception) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -45,7 +52,7 @@ def _db_unavailable(exc: Exception) -> HTTPException:
 
 
 @router.post("/register")
-async def register(req: RegisterRequest):
+def register(req: RegisterRequest):
     try:
         existing = db_fetch_one(
             """
@@ -127,7 +134,7 @@ async def register(req: RegisterRequest):
 
 
 @router.post("/login")
-async def login(req: LoginRequest):
+def login(req: LoginRequest):
     try:
         user = db_fetch_one(
             """
@@ -162,7 +169,7 @@ async def login(req: LoginRequest):
 
 
 @router.post("/refresh")
-async def refresh(req: RefreshRequest):
+def refresh(req: RefreshRequest):
     payload = decode_token(req.refresh_token)
 
     if payload is None:
@@ -175,6 +182,17 @@ async def refresh(req: RefreshRequest):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="El token proporcionado no es un refresh token.",
+        )
+
+    try:
+        revoked = is_revoked(payload.get("jti"))
+    except RuntimeError as exc:
+        raise _db_unavailable(exc) from exc
+
+    if revoked:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token revocado.",
         )
 
     user_id = payload.get("sub")
@@ -200,5 +218,22 @@ async def refresh(req: RefreshRequest):
 
 
 @router.post("/logout")
-async def logout():
+def logout(
+    req: LogoutRequest | None = None,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+):
+    """Revoca el access token del header y, si se envía, el refresh token."""
+    tokens = [credentials.credentials] if credentials else []
+    if req and req.refresh_token:
+        tokens.append(req.refresh_token)
+
+    try:
+        for token in tokens:
+            payload = decode_token(token)
+            if payload is not None:
+                revoke_token(payload)
+        purge_expired()
+    except RuntimeError as exc:
+        raise _db_unavailable(exc) from exc
+
     return {"message": "Logout realizado correctamente."}

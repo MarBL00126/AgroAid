@@ -116,6 +116,12 @@ CREATE TABLE IF NOT EXISTS webhooks (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+    jti        TEXT PRIMARY KEY,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);
+
 CREATE TABLE IF NOT EXISTS tenant_branding (
     tenant_id     INTEGER PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
     logo_url      TEXT NOT NULL DEFAULT '',
@@ -124,13 +130,84 @@ CREATE TABLE IF NOT EXISTS tenant_branding (
     app_name      TEXT NOT NULL DEFAULT 'AgroAid',
     footer_text   TEXT NOT NULL DEFAULT 'AgroSafety - Hackathon Global South AI Safety 2026'
 );
-
+CREATE TABLE IF NOT EXISTS eventos_fitosanitarios (
+    id           SERIAL PRIMARY KEY,
+    tenant_id    INTEGER REFERENCES tenants(id),
+    user_id      INTEGER REFERENCES users(id),
+    lat          DOUBLE PRECISION NOT NULL,
+    lon          DOUBLE PRECISION NOT NULL,
+    tipo         TEXT NOT NULL,
+    descripcion  TEXT,
+    nivel_riesgo TEXT,
+    radio_km     DOUBLE PRECISION DEFAULT 5,
+    verificado   BOOLEAN DEFAULT FALSE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS pre_aplicaciones (
+    id               SERIAL PRIMARY KEY,
+    tenant_id        INTEGER REFERENCES tenants(id),
+    user_id          INTEGER REFERENCES users(id),
+    lat              DOUBLE PRECISION NOT NULL,
+    lon              DOUBLE PRECISION NOT NULL,
+    producto         TEXT NOT NULL,
+    dosis_l_ha       DOUBLE PRECISION,
+    cultivo          TEXT,
+    distancia_agua_m DOUBLE PRECISION,
+    hora_aplicacion  TIMESTAMPTZ,
+    tipo_equipo      TEXT,
+    resultado_global TEXT NOT NULL,
+    detalle          JSONB NOT NULL,
+    pdf_path         TEXT,
+    entry_hash       TEXT,
+    prev_hash        TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS recetas_agronomicas (
+    id               SERIAL PRIMARY KEY,
+    tenant_id        INTEGER REFERENCES tenants(id),
+    user_id          INTEGER REFERENCES users(id),
+    consulta_id      INTEGER REFERENCES consultas(id),
+    numero_receta    TEXT NOT NULL UNIQUE,
+    producto         TEXT NOT NULL,
+    principio_activo TEXT,
+    cultivo          TEXT NOT NULL,
+    lote             TEXT,
+    superficie_ha    DOUBLE PRECISION,
+    dosis            TEXT NOT NULL,
+    volumen_agua     TEXT,
+    fecha_aplicacion DATE,
+    observaciones    TEXT,
+    nivel_riesgo     TEXT,
+    estado           TEXT NOT NULL DEFAULT 'borrador',
+    pdf_path         TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 INSERT INTO tenant_branding (tenant_id)
 VALUES (1)
 ON CONFLICT (tenant_id) DO NOTHING;
 
 -- Columnas de migraciones (ADD COLUMN IF NOT EXISTS es idempotente)
 ALTER TABLE consultas            ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+ALTER TABLE consultas
+    ADD COLUMN IF NOT EXISTS session_state JSONB,
+    ADD COLUMN IF NOT EXISTS session_status VARCHAR(20)
+        NOT NULL DEFAULT 'in_progress',
+    ADD COLUMN IF NOT EXISTS session_version INTEGER
+        NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
+        NOT NULL DEFAULT now();
+-- DROP + ADD para que el script sea idempotente (ADD CONSTRAINT no admite IF NOT EXISTS)
+ALTER TABLE consultas
+    DROP CONSTRAINT IF EXISTS consultas_session_status_check;
+ALTER TABLE consultas
+    ADD CONSTRAINT consultas_session_status_check
+    CHECK (
+        session_status IN (
+            'in_progress',
+            'completed',
+            'discarded'
+        )
+    );
 ALTER TABLE users                ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
 ALTER TABLE users                ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
 ALTER TABLE users                ADD COLUMN IF NOT EXISTS whatsapp TEXT UNIQUE;
@@ -162,6 +239,8 @@ LEFT JOIN metricas_seguridad m
    AND m.tenant_id = c.tenant_id;
 
 CREATE INDEX IF NOT EXISTS idx_consultas_tenant_id              ON consultas(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_consultas_session_status
+    ON consultas(tenant_id, session_status);
 CREATE INDEX IF NOT EXISTS idx_respuestas_consulta_id           ON respuestas(consulta_id);
 CREATE INDEX IF NOT EXISTS idx_auditoria_consulta_id            ON auditoria(consulta_id);
 CREATE INDEX IF NOT EXISTS idx_evaluaciones_finales_consulta_id ON evaluaciones_finales(consulta_id);
@@ -170,3 +249,13 @@ CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash                ON api_keys(key_
 CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_consulta_id    ON whatsapp_sessions(consulta_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_tenant_id      ON whatsapp_sessions(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_webhooks_tenant_active           ON webhooks(tenant_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_eventos_fitosanitarios_tenant
+    ON eventos_fitosanitarios(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_eventos_fitosanitarios_geo
+    ON eventos_fitosanitarios(lat, lon);
+CREATE INDEX IF NOT EXISTS idx_pre_aplicaciones_tenant
+    ON pre_aplicaciones(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_recetas_agronomicas_tenant
+    ON recetas_agronomicas(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_recetas_agronomicas_consulta
+    ON recetas_agronomicas(consulta_id);

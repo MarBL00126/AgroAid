@@ -1,11 +1,17 @@
 import os
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import bcrypt
 from jose import JWTError, jwt
 
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-secret-key")
+import core.config  # noqa: F401  (carga el .env antes de leer JWT_SECRET_KEY)
+
+# Sin valor por defecto: si falta o es débil, la app no arranca.
+SECRET_KEY = os.environ["JWT_SECRET_KEY"]
+if len(SECRET_KEY) < 32:
+    raise ValueError("JWT_SECRET_KEY debe tener al menos 32 caracteres")
 ALGORITHM = "HS256"
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -37,7 +43,8 @@ def create_access_token(data: dict) -> str:
 
     to_encode.update({
         "exp": expire,
-        "type": "access"
+        "type": "access",
+        "jti": uuid4().hex,
     })
 
     return jwt.encode(
@@ -56,7 +63,8 @@ def create_refresh_token(data: dict) -> str:
 
     to_encode.update({
         "exp": expire,
-        "type": "refresh"
+        "type": "refresh",
+        "jti": uuid4().hex,
     })
 
     return jwt.encode(

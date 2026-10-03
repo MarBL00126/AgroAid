@@ -5,7 +5,7 @@ import logging
 
 import httpx
 
-from core.database import db_fetch_all
+from core.database import db_fetch_all_async
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ async def dispatch_webhook(
     """
 
     try:
-        webhooks = db_fetch_all(
+        webhooks = await db_fetch_all_async(
             """
             SELECT
                 id,

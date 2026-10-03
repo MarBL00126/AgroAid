@@ -5,6 +5,7 @@ import pathlib
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
+from core.ai_chains import get_safety_chain
 from core.chroma import get_retriever, get_vector_store
 from core.deps import require_admin
 
@@ -47,6 +48,7 @@ def _safe_pdf_path(filename: str) -> pathlib.Path:
 def _clear_chroma_cache() -> None:
     get_retriever.cache_clear()
     get_vector_store.cache_clear()
+    get_safety_chain.cache_clear()
 
 
 @router.get("/pdfs")

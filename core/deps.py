@@ -10,6 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from core.database import db_fetch_one
 from core.security import decode_token
+from core.token_blacklist import is_revoked
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -125,6 +126,18 @@ def get_current_user(
         )
 
     try:
+        revoked = is_revoked(payload.get("jti"))
+    except RuntimeError as exc:
+        raise _db_unavailable() from exc
+
+    if revoked:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token revocado",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    try:
         user = db_fetch_one(
             """
             SELECT u.id, u.username, u.email, u.role, u.tenant_id,
@@ -157,6 +170,28 @@ def require_any(
     current_user: dict = Depends(get_current_user),
 ) -> dict:
     return current_user
+
+
+def get_tenant_id_from_user(current_user: dict) -> int:
+    """Tenant del usuario autenticado. Sin tenant no hay fallback: se rechaza el request."""
+    tenant_id = current_user.get("tenant_id")
+
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuario sin tenant asignado",
+        )
+
+    return int(tenant_id)
+
+
+def get_user_id_from_user(current_user: dict) -> int | None:
+    raw = current_user.get("id")
+    return int(raw) if raw is not None else None
+
+
+def get_tenant_slug_from_user(current_user: dict) -> str:
+    return (current_user.get("tenant_slug") or "default").strip() or "default"
 
 
 def require_admin(

@@ -1,13 +1,18 @@
 from __future__ import annotations
+import asyncio
 import os
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from google import genai
 from google.genai import types
+from core.config import GEMINI_MODEL, RATE_LIMIT_MULTIMEDIA
 from core.deps import require_any
+from core.limiter import limiter
+from routers.consultas import CONSULTA_MAX_CHARS, ConsultaRequest, iniciar_consulta
 router=APIRouter(
     prefix="/api/consulta",
     tags=["Imagen"]
 )
+
 SUPPORTED_MINE ={"image/jpeg","image/jpg","image/png","image/webp","image/heic"}
 LABEL_PROMPT = """
 Analizá esta foto de etiqueta de agroquímico, fitosanitario o producto veterinario.
@@ -29,7 +34,9 @@ No inventes datos. Respondé únicamente con el JSON, sin markdown ni explicacio
 def _get_client():
     return genai.Client(api_key=os.environ["GOOGLE_API_KEY"])
 @router.post("/imagen")
+@limiter.limit(RATE_LIMIT_MULTIMEDIA)
 async def consulta_imagen(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(require_any),):
     mime=(file.content_type or "image/jpeg").lower()
@@ -43,8 +50,9 @@ async def consulta_imagen(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Imagen vacía")
     client=_get_client()
     try:
-        resp=client.models.generate_content(
-            model="gemini-3.6-flash",
+        resp=await asyncio.to_thread(
+            client.models.generate_content,
+            model=GEMINI_MODEL,
             contents=[
                 types.Part.from_bytes(data=img_bytes, mime_type=mime),
                 LABEL_PROMPT,
@@ -67,10 +75,9 @@ async def consulta_imagen(
         f"Principio activo: {principio}. "
         f"Datos completos de la etiqueta:\n{texto_etiqueta}"
     )
-    from app import ConsultaRequest, iniciar_consulta
+    consulta_texto = consulta_texto[:CONSULTA_MAX_CHARS]
     req = ConsultaRequest(
         consulta_inicial=consulta_texto,
-        tenant_slug=current_user.get("tenant_slug", "default"),
     )
     evaluacion = await iniciar_consulta(req, current_user)
     return {

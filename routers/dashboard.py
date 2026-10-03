@@ -8,7 +8,7 @@ import csv
 
 from openpyxl import Workbook
 
-from core.database import db_fetch_all
+from core.database import db_execute_returning_one, db_fetch_all
 from core.deps import require_admin
 
 
@@ -39,7 +39,7 @@ class BrandingUpdate(BaseModel):
     app_name:Optional[str]=None
     footer_text:Optional[str]=None
 @router.get("/branding")
-async def get_branding(
+def get_branding(
     slug: str = Query(..., description="Slug del tenant"),
 ):
     _defaults = {
@@ -64,12 +64,12 @@ async def get_branding(
     except Exception:
         return _defaults
 @router.put("/branding")
-async def put_branding(
+def put_branding(
     data: BrandingUpdate,
     admin = Depends(require_admin),
 ):
     tenant_id=admin["tenant_id"]
-    rows=db_fetch_all(
+    branding = db_execute_returning_one(
         """
         INSERT INTO tenant_branding (
             tenant_id,
@@ -105,12 +105,12 @@ async def put_branding(
             
         ),
     )
-    if not rows:
-            raise HTTPException(
-              status_code=500,
-                detail="No se pudo actualizar el branding",
-            )
-    return rows[0]
+    if not branding:
+        raise HTTPException(
+            status_code=500,
+            detail="No se pudo actualizar el branding",
+        )
+    return branding
 
      
 
@@ -120,7 +120,7 @@ async def put_branding(
 # ============================================================
 
 @router.get("/dashboard")
-async def get_dashboard(
+def get_dashboard(
     admin=Depends(require_admin),
 ):
     """
@@ -249,7 +249,7 @@ def _build_historial_filters(
 
 
 @router.get("/historial")
-async def get_historial(
+def get_historial(
     page: int = Query(
         1,
         ge=1,
@@ -361,7 +361,7 @@ async def get_historial(
 # HISTORIAL - EXPORTACIÓN
 # ============================================================
 
-async def _get_historial_export(
+def _get_historial_export(
     tenant_id: int,
     fecha_desde: Optional[date],
     fecha_hasta: Optional[date],
@@ -409,7 +409,7 @@ async def _get_historial_export(
 
 
 @router.get("/historial/export")
-async def export_historial(
+def export_historial(
     format: str = Query(
         ...,
         pattern="^(csv|xlsx)$",
@@ -436,7 +436,7 @@ async def export_historial(
 
     tenant_id = admin["tenant_id"]
 
-    rows = await _get_historial_export(
+    rows = _get_historial_export(
         tenant_id,
         fecha_desde,
         fecha_hasta,
@@ -565,7 +565,7 @@ async def export_historial(
 # ============================================================
 
 @router.get("/webhooks")
-async def list_webhooks(
+def list_webhooks(
     admin=Depends(require_admin),
 ):
     """
@@ -595,7 +595,7 @@ async def list_webhooks(
 # ============================================================
 
 @router.post("/webhooks")
-async def create_webhook(
+def create_webhook(
     data: WebhookCreate,
     admin=Depends(require_admin),
 ):
@@ -605,7 +605,7 @@ async def create_webhook(
 
     tenant_id = admin["tenant_id"]
 
-    rows = db_fetch_all(
+    webhook = db_execute_returning_one(
         """
         INSERT INTO webhooks
         (
@@ -632,7 +632,7 @@ async def create_webhook(
         ),
     )
 
-    return rows[0]
+    return webhook
 
 
 # ============================================================
@@ -640,7 +640,7 @@ async def create_webhook(
 # ============================================================
 
 @router.delete("/webhooks/{webhook_id}")
-async def delete_webhook(
+def delete_webhook(
     webhook_id: int,
     admin=Depends(require_admin),
 ):
@@ -650,7 +650,7 @@ async def delete_webhook(
 
     tenant_id = admin["tenant_id"]
 
-    rows = db_fetch_all(
+    deleted = db_execute_returning_one(
         """
         DELETE FROM webhooks
         WHERE id = %s
@@ -663,7 +663,7 @@ async def delete_webhook(
         ),
     )
 
-    if not rows:
+    if not deleted:
         raise HTTPException(
             status_code=404,
             detail="Webhook no encontrado",
@@ -671,6 +671,6 @@ async def delete_webhook(
 
     return {
         "ok": True,
-        "id": rows[0]["id"],
+        "id": deleted["id"],
     }
 

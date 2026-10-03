@@ -7,6 +7,7 @@ SQLAlchemy.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from contextlib import contextmanager
@@ -95,6 +96,57 @@ def db_fetch_val(sql: str, params: tuple = ()):
             row = cur.fetchone()
             return row[0] if row else None
 
+
+# Variantes async: ejecutan el helper bloqueante (psycopg2) en un thread para no
+# frenar el event loop cuando se usan dentro de funciones `async def`.
+async def db_exec_async(sql: str, params: tuple = ()) -> None:
+    return await asyncio.to_thread(db_exec, sql, params)
+
+
+async def db_fetch_one_async(sql: str, params: tuple = ()) -> dict | None:
+    return await asyncio.to_thread(db_fetch_one, sql, params)
+
+
+async def db_fetch_all_async(sql: str, params: tuple = ()) -> list[dict]:
+    return await asyncio.to_thread(db_fetch_all, sql, params)
+
+
+async def db_fetch_val_async(sql: str, params: tuple = ()):
+    return await asyncio.to_thread(db_fetch_val, sql, params)
+
+
+async def db_execute_returning_one_async(
+    sql: str,
+    params: tuple = (),
+) -> dict | None:
+    return await asyncio.to_thread(db_execute_returning_one, sql, params)
+
+
+def db_execute_returning_one(
+    sql: str,
+    params: tuple = (),
+) -> dict | None:
+
+    with get_conn() as conn:
+        try:
+            with conn.cursor(
+                cursor_factory=RealDictCursor
+            ) as cur:
+
+                cur.execute(sql, params)
+                row = cur.fetchone()
+
+            conn.commit()
+
+            return (
+                dict(row)
+                if row
+                else None
+            )
+
+        except Exception:
+            conn.rollback()
+            raise
 
 def ensure_schema() -> None:
     import pathlib

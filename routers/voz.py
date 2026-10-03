@@ -6,8 +6,16 @@ import pathlib
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from google import genai
 from google.genai import types
+from core.config import GEMINI_MODEL, RATE_LIMIT_MULTIMEDIA
 from core.deps import require_any
-from fastapi import Request as FastAPIRequest
+from core.limiter import limiter
+from fastapi import Request
+from routers.consultas import (
+    CONSULTA_MAX_CHARS,
+    CONSULTA_MIN_CHARS,
+    ConsultaRequest,
+    iniciar_consulta,
+)
 
 router = APIRouter(prefix="/api/voz", tags=["Voz"])
 
@@ -26,7 +34,7 @@ def _transcribir_sync(audio_bytes: bytes, mime_type: str) -> str:
         mime_type = "audio/webm"
     client = _get_client()
     response = client.models.generate_content(
-        model="gemini-3.6-flash",
+        model=GEMINI_MODEL,
         contents=[
             types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
             "Transcribi este audio exactamente en español latinoamericano. "
@@ -39,7 +47,9 @@ def _transcribir_sync(audio_bytes: bytes, mime_type: str) -> str:
 async def _transcribir_bytes(audio_bytes: bytes, mime_type: str) -> str:
     return await asyncio.to_thread(_transcribir_sync, audio_bytes, mime_type)
 @router.post("/transcribir")
+@limiter.limit(RATE_LIMIT_MULTIMEDIA)
 async def transcribir(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(require_any),
 ):
@@ -49,7 +59,9 @@ async def transcribir(
     text = await _transcribir_bytes(audio_bytes, file.content_type or "audio/webm")
     return {"text": text}
 @router.post("/consulta")
+@limiter.limit(RATE_LIMIT_MULTIMEDIA)
 async def voz_consulta(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(require_any),
 ):
@@ -62,9 +74,10 @@ async def voz_consulta(
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=f"Error al transcribir: {exc}") from exc
     if not text:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No se pudo transcribir el audio")
-    from app import iniciar_consulta, ConsultaRequest
+    text = text[:CONSULTA_MAX_CHARS]
+    if len(text) < CONSULTA_MIN_CHARS:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="El audio es demasiado corto para generar una consulta")
     req = ConsultaRequest(
         consulta_inicial=text,
-        tenant_slug=current_user.get("tenant_slug", "default"),
     )
     return await iniciar_consulta(req, current_user)

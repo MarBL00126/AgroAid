@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import os
 import logging
 
@@ -8,7 +9,15 @@ from fastapi.responses import Response
 from twilio.request_validator import RequestValidator
 from twilio.twiml.messaging_response import MessagingResponse
 from routers.voz import _transcribir_bytes
+from core.consulta_repo import crear_consulta, guardar_respuesta, registrar_auditoria
 from core.database import db_fetch_one, get_conn
+from core.session_service import (
+    SessionState,
+    cargar_session_state,
+    guardar_session_state,
+    run_iteration,
+    to_response,
+)
 import httpx
 
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
@@ -119,23 +128,16 @@ async def whatsapp_webhook(request: Request):
         return _twiml("No recibi ningun mensaje. Por favor escribi tu consulta.")
 
     # Resolve tenant
-    tenant_info = _get_tenant_info(phone)
+    tenant_info = await asyncio.to_thread(_get_tenant_info, phone)
     if tenant_info is None:
         return _twiml("El servicio no esta disponible en este momento. Intenta mas tarde.")
     tenant_id, tenant_slug = tenant_info
 
-    # Import here to avoid circular imports at module load
-    from app import (
-        SessionState, _sessions, _to_response,
-        crear_consulta, registrar_auditoria,
-        _run_iteration, guardar_respuesta,
-    )
-
-    session_data = _get_session(phone)
+    session_data = await asyncio.to_thread(_get_session, phone)
 
     # ── CASO A: nueva consulta ────────────────────────────────────────────────
     if session_data is None or session_data["state"] == "idle" or not session_data.get("consulta_id"):
-        consulta_id = crear_consulta(body, tenant_slug)
+        consulta_id = await asyncio.to_thread(crear_consulta, body, tenant_slug)
 
         session = SessionState(
             consulta_id=consulta_id,
@@ -144,16 +146,18 @@ async def whatsapp_webhook(request: Request):
             max_iteraciones=5,
         )
         session.historial_consulta.append(f"CONSULTA INICIAL: {body}")
-        registrar_auditoria(consulta_id, 0, "CONSULTA_INICIAL_WHATSAPP",
-                            {"phone": phone, "tenant_id": tenant_id, "consulta": body})
+        await asyncio.to_thread(
+            registrar_auditoria, consulta_id, 0, "CONSULTA_INICIAL_WHATSAPP",
+            {"phone": phone, "tenant_id": tenant_id, "consulta": body},
+        )
 
-        await _run_iteration(session)
-        _sessions[consulta_id] = session
-        _upsert_session(phone, consulta_id, tenant_id)
+        await run_iteration(session)
+        await asyncio.to_thread(guardar_session_state, session)
+        await asyncio.to_thread(_upsert_session, phone, consulta_id, tenant_id)
 
-        result = _to_response(session)
+        result = to_response(session)
         if result["completado"]:
-            _clear_session(phone)
+            await asyncio.to_thread(_clear_session, phone)
             return _twiml(result.get("evaluacion_final") or result.get("justificacion") or "Evaluacion finalizada.")
 
         questions = result.get("preguntas_seguimiento", [])
@@ -167,23 +171,26 @@ async def whatsapp_webhook(request: Request):
 
     # ── CASO B: sesion en progreso ────────────────────────────────────────────
     consulta_id = session_data["consulta_id"]
-    session = _sessions.get(consulta_id)
+    session = await asyncio.to_thread(cargar_session_state, consulta_id)
 
     if session is None:
-        # Server restarted — in-memory session lost
-        logger.warning("Session %s no esta en memoria (reinicio de servidor)", consulta_id)
-        _clear_session(phone)
-        return _twiml("La sesion anterior no esta disponible (el servidor se reinicio). Envia tu consulta de nuevo.")
+        logger.warning("Session %s no encontrada o descartada", consulta_id)
+        await asyncio.to_thread(_clear_session, phone)
+        return _twiml("La sesion anterior no esta disponible. Envia tu consulta de nuevo.")
 
     if session.completado:
-        _clear_session(phone)
+        await asyncio.to_thread(_clear_session, phone)
         return _twiml(session.evaluacion_final or "La evaluacion ya fue completada.")
 
     preguntas = (session.ultima_evaluacion or {}).get("preguntas_seguimiento", [])
-    guardar_respuesta(consulta_id, session.iteracion_actual, preguntas, body,
-                      session.confianza_final, session.riesgo_final)
-    registrar_auditoria(consulta_id, session.iteracion_actual, "RESPUESTA_USUARIO_WHATSAPP",
-                        {"phone": phone, "respuesta": body})
+    await asyncio.to_thread(
+        guardar_respuesta, consulta_id, session.iteracion_actual, preguntas, body,
+        session.confianza_final, session.riesgo_final,
+    )
+    await asyncio.to_thread(
+        registrar_auditoria, consulta_id, session.iteracion_actual, "RESPUESTA_USUARIO_WHATSAPP",
+        {"phone": phone, "respuesta": body},
+    )
     session.historial_consulta.append(f"Respuesta iteracion {session.iteracion_actual}: {body}")
     session.historial_respuestas.append({
         "iteracion": session.iteracion_actual,
@@ -192,12 +199,13 @@ async def whatsapp_webhook(request: Request):
     })
     session.iteracion_actual += 1
 
-    await _run_iteration(session)
-    result = _to_response(session)
+    await run_iteration(session)
+    await asyncio.to_thread(guardar_session_state, session)
+    result = to_response(session)
 
     # ── CASO C: finalizo ──────────────────────────────────────────────────────
     if result["completado"]:
-        _clear_session(phone)
+        await asyncio.to_thread(_clear_session, phone)
         final = result.get("evaluacion_final") or result.get("justificacion") or "Evaluacion finalizada."
         return _twiml(f"AgroSafety - Evaluacion final\n\n{final}")
 
