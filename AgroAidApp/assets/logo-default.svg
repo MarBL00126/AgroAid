@@ -1,0 +1,8 @@
+<svg width="320" height="96" viewBox="0 0 320 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="96" rx="20" fill="#F7FBF3"/>
+  <path d="M46 70C31.6 58.8 29.2 38.8 42 26C54.8 38.8 52.4 58.8 38 70H46Z" fill="#2F7D32"/>
+  <path d="M50 70C46 52.8 55.6 34.4 73 29.6C78.6 48.4 68.6 64.8 50 70Z" fill="#86A83E"/>
+  <path d="M40 70H75" stroke="#DFA53A" stroke-width="7" stroke-linecap="round"/>
+  <text x="98" y="50" fill="#162316" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700">AgroAid</text>
+  <text x="100" y="72" fill="#52634D" font-family="Arial, Helvetica, sans-serif" font-size="14">asistencia agronomica</text>
+</svg>
