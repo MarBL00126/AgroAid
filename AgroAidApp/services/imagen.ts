@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import type { ConsultaResponse } from './consultas';
 
 export type EtiquetaParseada = {
   producto: string | null;
@@ -15,7 +16,7 @@ export type EtiquetaParseada = {
 export type ImagenConsultaResult = {
   etiqueta_parseada: EtiquetaParseada;
   consulta_generada: string;
-  evaluacion: unknown;
+  evaluacion: ConsultaResponse;
 };
 
 /**

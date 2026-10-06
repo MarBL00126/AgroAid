@@ -13,12 +13,20 @@ export function RecetaCard({ receta, onDownload }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.title}>{receta.titulo}</Text>
-        <RiesgoChip nivel={receta.riesgo} />
+        <Text style={styles.title}>{receta.numero_receta}</Text>
+        <RiesgoChip nivel={receta.nivel_riesgo || receta.estado} />
       </View>
 
+      <Text style={styles.crop}>{receta.producto}</Text>
       <Text style={styles.crop}>{receta.cultivo}</Text>
-      <Text style={styles.description}>{receta.descripcion}</Text>
+      <Text style={styles.description}>
+        {receta.dosis}
+        {receta.lote ? ` - lote ${receta.lote}` : ''}
+        {receta.fecha_aplicacion
+          ? ` - ${String(receta.fecha_aplicacion).slice(0, 10)}`
+          : ''}
+      </Text>
+      <Text style={styles.state}>Estado: {receta.estado}</Text>
 
       <Pressable
         disabled={!onDownload}
@@ -59,6 +67,11 @@ const styles = StyleSheet.create({
   description: {
     color: colors.text.secondary,
     lineHeight: 20
+  },
+  state: {
+    color: colors.text.secondary,
+    fontSize: 13,
+    fontWeight: '700'
   },
   button: {
     alignItems: 'center',

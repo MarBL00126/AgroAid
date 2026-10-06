@@ -37,7 +37,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse
@@ -236,6 +236,40 @@ async def admin_page():
     if page.exists():
         return FileResponse(str(page))
     return FileResponse(str(FRONTEND_DIR / "index.html"))
+
+
+def _frontend_page(filename: str, media_type: str | None = None):
+    page = FRONTEND_DIR / filename
+    if not page.exists():
+        raise HTTPException(404, f"{filename} no encontrado")
+    return FileResponse(str(page), media_type=media_type)
+
+
+@app.get("/mapa")
+async def mapa_page():
+    return _frontend_page("mapa.html")
+
+
+@app.get("/recetas")
+async def recetas_page():
+    return _frontend_page("recetas.html")
+
+
+@app.get("/prevuelo")
+async def prevuelo_page():
+    return _frontend_page("prevuelo.html")
+
+
+@app.get("/widget-demo")
+async def widget_demo_page():
+    return _frontend_page("widget-demo.html")
+
+
+@app.get("/widget.js")
+async def widget_js():
+    response = _frontend_page("widget.js", "application/javascript")
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/api/health")

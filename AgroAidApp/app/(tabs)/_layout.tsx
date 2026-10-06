@@ -67,6 +67,20 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen
+        name="prevuelo"
+        options={{
+          title: 'Pre-vuelo',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="airplane-outline"
+              color={color}
+              size={size}
+            />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="recetas"
         options={{
           title: 'Recetas',

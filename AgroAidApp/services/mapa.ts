@@ -1,53 +1,48 @@
-export type EventoTipo =
-  | 'clima'
-  | 'plaga'
-  | 'enfermedad'
-  | 'incendio'
-  | 'agua'
-  | 'otro';
+import { apiFetch } from '@/services/api';
+
+export type EventoTipo = 'plaga' | 'enfermedad' | 'contaminacion' | 'incendio';
 
 export type EventoMapa = {
-  id: string;
+  id: number;
+  tenant_id: number;
+  user_id: number | null;
   tipo: EventoTipo;
-  titulo: string;
-  descripcion: string;
+  descripcion: string | null;
   lat: number;
   lon: number;
-  fecha: string;
-  riesgo: 'BAJO' | 'MEDIO' | 'ALTO' | 'CRITICO';
+  nivel_riesgo: 'BAJO' | 'MEDIO' | 'ALTO' | 'CRITICO' | string;
+  radio_km: number;
+  verificado: boolean;
+  created_at: string;
+  distancia_km?: number;
 };
 
-const eventosDemo: EventoMapa[] = [
-  {
-    id: 'demo-helada',
-    tipo: 'clima',
-    titulo: 'Riesgo de helada',
-    descripcion: 'Productores reportaron descenso fuerte de temperatura.',
-    lat: -34.6037,
-    lon: -58.3816,
-    fecha: new Date().toISOString(),
-    riesgo: 'MEDIO'
-  },
-  {
-    id: 'demo-plaga',
-    tipo: 'plaga',
-    titulo: 'Monitoreo de plaga',
-    descripcion: 'Revisar lotes cercanos y confirmar con asesor tecnico.',
-    lat: -34.72,
-    lon: -58.26,
-    fecha: new Date().toISOString(),
-    riesgo: 'ALTO'
-  }
-];
+export type EventoCreate = {
+  lat: number;
+  lon: number;
+  tipo: EventoTipo;
+  descripcion?: string | null;
+  nivel_riesgo?: string | null;
+  radio_km?: number;
+};
 
-export async function getEventos(): Promise<EventoMapa[]> {
-  return eventosDemo;
+export function getEventos(params: {
+  lat: number;
+  lon: number;
+  radio_km?: number;
+}) {
+  const search = new URLSearchParams({
+    lat: String(params.lat),
+    lon: String(params.lon),
+    radio_km: String(params.radio_km ?? 100)
+  });
+
+  return apiFetch<EventoMapa[]>(`/api/mapa/eventos?${search.toString()}`);
 }
 
-export async function reportarEvento(evento: Omit<EventoMapa, 'id' | 'fecha'>) {
-  return {
-    ...evento,
-    id: `local-${Date.now()}`,
-    fecha: new Date().toISOString()
-  };
+export function reportarEvento(evento: EventoCreate) {
+  return apiFetch<EventoMapa>('/api/mapa/eventos', {
+    method: 'POST',
+    body: JSON.stringify(evento)
+  });
 }

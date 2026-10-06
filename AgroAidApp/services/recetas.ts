@@ -1,42 +1,60 @@
+import { apiFetch, buildUrl } from '@/services/api';
+
 export type Receta = {
-  id: string;
-  titulo: string;
+  id: number;
+  numero_receta: string;
+  producto: string;
+  principio_activo: string | null;
   cultivo: string;
-  descripcion: string;
-  riesgo: 'BAJO' | 'MEDIO' | 'ALTO' | 'CRITICO';
-  pdfUrl?: string;
+  lote: string | null;
+  superficie_ha: number | null;
+  dosis: string;
+  volumen_agua: string | null;
+  fecha_aplicacion: string | null;
+  observaciones?: string | null;
+  nivel_riesgo: string | null;
+  estado: 'borrador' | 'emitida' | 'anulada' | string;
+  pdf_path: string | null;
+  pdf_url?: string;
+  created_at?: string;
 };
 
-const recetasDemo: Receta[] = [
-  {
-    id: 'bpa-fit',
-    titulo: 'Buenas practicas para fitosanitarios',
-    cultivo: 'General',
-    descripcion:
-      'Checklist preventivo: etiqueta, EPP, viento, distancia a viviendas y asesor tecnico.',
-    riesgo: 'ALTO'
-  },
-  {
-    id: 'estres-termico',
-    titulo: 'Prevencion de estres termico',
-    cultivo: 'Ganaderia y campo',
-    descripcion:
-      'Pautas para ajustar horarios de trabajo y monitorear condiciones climaticas.',
-    riesgo: 'MEDIO'
-  }
-];
+export type RecetaCreate = {
+  consulta_id?: number | null;
+  producto: string;
+  principio_activo?: string | null;
+  cultivo: string;
+  lote?: string | null;
+  superficie_ha?: number | null;
+  dosis: string;
+  volumen_agua?: string | null;
+  fecha_aplicacion?: string | null;
+  observaciones?: string | null;
+  nivel_riesgo?: string | null;
+};
 
-export async function getRecetas(): Promise<Receta[]> {
-  return recetasDemo;
+export function getRecetas(page = 1, pageSize = 20) {
+  return apiFetch<Receta[]>(
+    `/api/recetas?page=${page}&page_size=${pageSize}`
+  );
 }
 
-export async function crearReceta(receta: Omit<Receta, 'id'>): Promise<Receta> {
-  return {
-    ...receta,
-    id: `local-${Date.now()}`
-  };
+export function crearReceta(receta: RecetaCreate) {
+  return apiFetch<Receta>('/api/recetas', {
+    method: 'POST',
+    body: JSON.stringify(receta)
+  });
 }
 
-export async function descargarPDF(recetaId: string) {
-  return recetasDemo.find((receta) => receta.id === recetaId)?.pdfUrl ?? null;
+export function cambiarEstadoReceta(
+  recetaId: number,
+  estado: 'emitir' | 'anular'
+) {
+  return apiFetch<Receta>(`/api/recetas/${recetaId}/${estado}`, {
+    method: 'PUT'
+  });
+}
+
+export function recetaPdfUrl(receta: Pick<Receta, 'id' | 'pdf_url'>) {
+  return buildUrl(receta.pdf_url ?? `/api/recetas/${receta.id}/pdf`);
 }

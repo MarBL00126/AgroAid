@@ -3,143 +3,58 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#16a34a" />
+  <link rel="manifest" href="/static/manifest.json" />
   <title>AgroAid - Mapa fitosanitario</title>
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
-    :root {
-      color-scheme: light;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    body {
-      margin: 0;
-      background: #f8fafc;
-      color: #0f172a;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 16px;
-      background: #14532d;
-      color: white;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 18px;
-    }
-    .token-box {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .token-box input {
-      width: min(46vw, 360px);
-      padding: 8px;
-      border: 1px solid #86efac;
-      border-radius: 6px;
+    :root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    html, body { height: 100%; margin: 0; }
+    body { display: flex; flex-direction: column; background: #f8fafc; color: #0f172a; }
+    #map { flex: 1; width: 100%; min-height: 300px; }
+    .hint {
+      padding: 8px 14px; font-size: 13px; background: #ecfdf5; color: #14532d;
+      border-bottom: 1px solid #bbf7d0;
     }
     button {
-      border: 0;
-      border-radius: 6px;
-      padding: 9px 12px;
-      background: #16a34a;
-      color: white;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    #map {
-      height: calc(100vh - 58px);
-      width: 100%;
+      border: 0; border-radius: 8px; padding: 12px 14px; min-height: 44px;
+      background: #16a34a; color: #fff; font-weight: 700; cursor: pointer; font-size: 15px;
     }
     .panel {
-      position: fixed;
-      right: 14px;
-      top: 74px;
-      z-index: 1000;
-      width: min(360px, calc(100vw - 28px));
-      background: white;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.2);
-      padding: 14px;
-      display: none;
+      position: fixed; right: 12px; bottom: 12px; z-index: 1000;
+      width: min(380px, calc(100vw - 24px)); max-height: 85vh; overflow: auto;
+      background: #fff; border: 1px solid #cbd5e1; border-radius: 12px;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, .25); padding: 14px; display: none;
     }
-    .panel.open {
-      display: block;
+    .panel.open { display: block; }
+    .panel h2 { margin: 0 0 8px; font-size: 16px; }
+    label { display: grid; gap: 5px; margin: 8px 0; font-size: 13px; font-weight: 700; }
+    select, textarea, input[type="number"] {
+      width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1;
+      border-radius: 8px; padding: 10px; font: inherit; font-size: 16px;
     }
-    .panel h2 {
-      margin: 0 0 10px;
-      font-size: 16px;
-    }
-    label {
-      display: grid;
-      gap: 5px;
-      margin: 8px 0;
-      font-size: 13px;
-      font-weight: 700;
-    }
-    select,
-    textarea,
-    input[type="number"] {
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 8px;
-      font: inherit;
-    }
-    textarea {
-      min-height: 86px;
-      resize: vertical;
-    }
-    .actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .secondary {
-      background: #e2e8f0;
-      color: #0f172a;
-    }
+    textarea { min-height: 86px; resize: vertical; }
+    .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+    .secondary { background: #e2e8f0; color: #0f172a; }
     .marker-dot {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      border: 2px solid white;
-      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.45);
+      width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, .45);
     }
-    @media (max-width: 720px) {
-      header {
-        align-items: stretch;
-        flex-direction: column;
-      }
-      .token-box input {
-        width: 100%;
-      }
-    }
+    #msg { font-size: 13px; margin-top: 8px; min-height: 16px; }
+    .err { color: #b91c1c; } .ok { color: #15803d; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Mapa colaborativo fitosanitario</h1>
-    <div class="token-box">
-      <input id="token" placeholder="JWT o API Key" />
-      <button id="guardarToken">Guardar</button>
-      </div>
-  </header>
+  <div id="app-nav"></div>
+  <div class="hint">Toca el mapa para reportar un evento fitosanitario en ese punto.</div>
   <div id="map"></div>
+
   <form id="panel" class="panel">
     <h2>Reportar evento</h2>
     <input id="lat" type="hidden" />
     <input id="lon" type="hidden" />
-    <label>
-      Tipo
+    <label>Tipo
       <select id="tipo" required>
         <option value="plaga">Plaga</option>
         <option value="enfermedad">Enfermedad</option>
@@ -147,82 +62,68 @@
         <option value="incendio">Incendio</option>
       </select>
     </label>
-    <label>
-      Radio estimado (km)
+    <label>Radio estimado (km)
       <input id="radio" type="number" min="1" max="200" step="1" value="5" />
     </label>
-    <label>
-      Descripcion
-      <textarea id="descripcion" required></textarea>
+    <label>Descripcion
+      <textarea id="descripcion" required maxlength="2000"></textarea>
     </label>
+    <div id="msg"></div>
     <div class="actions">
       <button type="button" class="secondary" id="cancelar">Cancelar</button>
-      <button type="submit">Enviar</button>
+      <button type="submit" id="enviar">Enviar</button>
     </div>
   </form>
+
+  <script src="/static/shared.js"></script>
   <script>
-    const tokenInput = document.getElementById("token");
-    const savedToken = localStorage.getItem("agroaid_token") || "";
-    tokenInput.value = savedToken;
-    document.getElementById("guardarToken").addEventListener("click", () => {
-      localStorage.setItem("agroaid_token", tokenInput.value.trim());
-      cargarEventos();
-    });
+    AgroAid.renderNav("mapa");
+    const { authFetch, esc, errorText } = AgroAid;
+
     const map = L.map("map").setView([-34.6, -58.4], 6);
     const markers = L.layerGroup().addTo(map);
     let currentCenter = { lat: -34.6, lon: -58.4 };
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: "&copy; OpenStreetMap",
+      maxZoom: 19, attribution: "&copy; OpenStreetMap",
     }).addTo(map);
+
     const colors = {
-      plaga: "#dc2626",
-      enfermedad: "#f97316",
-      contaminacion: "#ca8a04",
-      incendio: "#1e3a8a",
+      plaga: "#dc2626", enfermedad: "#f97316",
+      contaminacion: "#ca8a04", incendio: "#1e3a8a",
     };
-    function authHeaders() {
-      const value = tokenInput.value.trim();
-      if (!value) return {};
-      if (value.startsWith("ags_")) return { "X-API-Key": value };
-      return { Authorization: `Bearer ${value}` };
-    }
     function iconFor(tipo) {
       const color = colors[tipo] || "#334155";
       return L.divIcon({
         className: "",
         html: `<div class="marker-dot" style="background:${color}"></div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
+        iconSize: [20, 20], iconAnchor: [10, 10],
       });
     }
+
     async function cargarEventos() {
       markers.clearLayers();
-      const url =
-        `/api/mapa/eventos?lat=${currentCenter.lat}` +
-        `&lon=${currentCenter.lon}&radio_km=100`;
-      const res = await fetch(url, { headers: authHeaders() });
-      if (!res.ok) {
-        console.warn("No se pudieron cargar eventos", await res.text());
-        return;
+      try {
+        const url = `/api/mapa/eventos?lat=${currentCenter.lat}&lon=${currentCenter.lon}&radio_km=100`;
+        const res = await authFetch(url);
+        if (!res.ok) { console.warn(await errorText(res)); return; }
+        const eventos = await res.json();
+        eventos.forEach((ev) => {
+          L.marker([ev.lat, ev.lon], { icon: iconFor(ev.tipo) })
+            .bindPopup(
+              `<strong>${esc(ev.tipo)}</strong>${ev.verificado ? " (verificado)" : ""}<br>` +
+              `Riesgo: ${esc(ev.nivel_riesgo || "-")}<br>` +
+              `Distancia: ${Number(ev.distancia_km || 0).toFixed(1)} km<br>` +
+              `${esc(ev.descripcion || "")}`
+            )
+            .addTo(markers);
+        });
+      } catch (e) {
+        console.warn("No se pudieron cargar eventos", e);
       }
-      const eventos = await res.json();
-      eventos.forEach((ev) => {
-        L.marker([ev.lat, ev.lon], { icon: iconFor(ev.tipo) })
-          .bindPopup(
-            `<strong>${ev.tipo}</strong><br>` +
-            `Riesgo: ${ev.nivel_riesgo || "-"}<br>` +
-            `Distancia: ${Number(ev.distancia_km || 0).toFixed(1)} km<br>` +
-            `${ev.descripcion || ""}`
-          )
-          .addTo(markers);
-      });
     }
+
     function usarUbicacion(pos) {
-      currentCenter = {
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude,
-      };
+      currentCenter = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       map.setView([currentCenter.lat, currentCenter.lon], 11);
       cargarEventos();
     }
@@ -231,39 +132,46 @@
     } else {
       cargarEventos();
     }
+
+    const panel = document.getElementById("panel");
+    const msg = document.getElementById("msg");
+    function setMsg(text, cls) { msg.textContent = text; msg.className = cls || ""; }
+
     map.on("click", (event) => {
       document.getElementById("lat").value = event.latlng.lat;
       document.getElementById("lon").value = event.latlng.lng;
-      document.getElementById("panel").classList.add("open");
+      setMsg("");
+      panel.classList.add("open");
     });
-    document.getElementById("cancelar").addEventListener("click", () => {
-      document.getElementById("panel").classList.remove("open");
-    });
-    document.getElementById("panel").addEventListener("submit", async (event) => {
+    document.getElementById("cancelar").addEventListener("click", () => panel.classList.remove("open"));
+
+    panel.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const body = {
-        lat: Number(document.getElementById("lat").value),
-        lon: Number(document.getElementById("lon").value),
-        tipo: document.getElementById("tipo").value,
-        radio_km: Number(document.getElementById("radio").value || 5),
-        descripcion: document.getElementById("descripcion").value.trim(),
-      };
-      const res = await fetch("/api/mapa/eventos", {
-        method: "POST",
-        headers: {
-             "Content-Type": "application/json",
-          ...authHeaders(),
-        },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        alert("No se pudo crear el evento");
-        return;
+      const btn = document.getElementById("enviar");
+      btn.disabled = true;
+      setMsg("Enviando...");
+      try {
+        const res = await authFetch("/api/mapa/eventos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: Number(document.getElementById("lat").value),
+            lon: Number(document.getElementById("lon").value),
+            tipo: document.getElementById("tipo").value,
+            radio_km: Number(document.getElementById("radio").value || 5),
+            descripcion: document.getElementById("descripcion").value.trim(),
+          }),
+        });
+        if (!res.ok) { setMsg(await errorText(res), "err"); return; }
+        event.target.reset();
+        document.getElementById("radio").value = 5;
+        panel.classList.remove("open");
+        cargarEventos();
+      } catch (e) {
+        setMsg("Error de conexion", "err");
+      } finally {
+        btn.disabled = false;
       }
-      event.target.reset();
-      document.getElementById("radio").value = 5;
-      document.getElementById("panel").classList.remove("open");
-      cargarEventos();
     });
   </script>
 </body>

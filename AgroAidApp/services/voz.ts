@@ -1,4 +1,5 @@
 import { apiFetch } from './api';
+import type { ConsultaResponse } from './consultas';
 
 export type TranscripcionResult = {
   text: string;
@@ -35,7 +36,7 @@ export async function transcribirAudio(
 export async function vozConsulta(
   audioUri: string,
   mimeType = 'audio/m4a'
-): Promise<unknown> {
+): Promise<ConsultaResponse> {
   const formData = new FormData();
   const filename = audioUri.split('/').pop() ?? 'audio.m4a';
 

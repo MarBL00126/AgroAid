@@ -7,6 +7,36 @@ class AgroAidWidget extends HTMLElement {
     const apiKey = this.getAttribute("api-key") || "";
     const baseUrl =
       this.getAttribute("base-url") || window.location.origin;
+    const guestKey = "agroaid_widget_guest_token";
+    const hasApiKey = apiKey && !apiKey.includes("aqui");
+
+    function tokenValid(token) {
+      if (!token) return false;
+      try {
+        const payload = JSON.parse(
+          atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))
+        );
+        return !payload.exp || payload.exp * 1000 > Date.now() + 60000;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async function authHeaders() {
+      if (hasApiKey) return { "X-API-Key": apiKey };
+
+      let token = localStorage.getItem(guestKey);
+      if (!tokenValid(token)) {
+        const res = await fetch(`${baseUrl}/auth/guest`, { method: "POST" });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        token = data.access_token;
+        localStorage.setItem(guestKey, token);
+      }
+
+      return { Authorization: `Bearer ${token}` };
+    }
+
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -81,7 +111,7 @@ class AgroAidWidget extends HTMLElement {
       try {
         const res = await fetch(
           `${baseUrl}/api/risk-score?q=${encodeURIComponent(q)}`,
-          { headers: { "X-API-Key": apiKey } }
+          { headers: await authHeaders() }
         );
         if (!res.ok) {
           throw new Error(await res.text());

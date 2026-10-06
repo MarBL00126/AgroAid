@@ -8,6 +8,29 @@ CREATE TABLE IF NOT EXISTS tenants (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Migracion para bases existentes: CREATE TABLE IF NOT EXISTS no agrega columnas.
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS slug VARCHAR(100);
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+UPDATE tenants
+SET slug = CASE
+    WHEN id = 1 THEN 'default'
+    ELSE 'tenant-' || id::text
+END
+WHERE slug IS NULL OR btrim(slug) = '';
+
+UPDATE tenants
+SET name = CASE
+    WHEN slug = 'default' THEN 'Default'
+    ELSE slug
+END
+WHERE name IS NULL OR btrim(name) = '';
+
+CREATE UNIQUE INDEX IF NOT EXISTS tenants_slug_key ON tenants(slug);
+ALTER TABLE tenants ALTER COLUMN slug SET NOT NULL;
+ALTER TABLE tenants ALTER COLUMN name SET NOT NULL;
+
 INSERT INTO tenants (slug, name)
 VALUES ('default', 'Default')
 ON CONFLICT (slug) DO NOTHING;
@@ -183,11 +206,15 @@ CREATE TABLE IF NOT EXISTS recetas_agronomicas (
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 INSERT INTO tenant_branding (tenant_id)
-VALUES (1)
+SELECT id
+FROM tenants
+WHERE slug = 'default'
 ON CONFLICT (tenant_id) DO NOTHING;
 
 -- Columnas de migraciones (ADD COLUMN IF NOT EXISTS es idempotente)
 ALTER TABLE consultas            ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id);
+ALTER TABLE consultas            ADD COLUMN IF NOT EXISTS consulta_inicial TEXT NOT NULL DEFAULT '';
+ALTER TABLE consultas            ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
 ALTER TABLE consultas
     ADD COLUMN IF NOT EXISTS session_state JSONB,
     ADD COLUMN IF NOT EXISTS session_status VARCHAR(20)

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#16a34a" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <title>AgroAid - Recetas agronomicas</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f1f5f9; color: #0f172a; }
+    main { max-width: 720px; margin: 0 auto; padding: 14px; }
+    h1 { font-size: 20px; margin: 6px 0 12px; color: #14532d; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+    label { display: grid; gap: 5px; margin: 10px 0; font-size: 13px; font-weight: 700; }
+    input, textarea {
+      width: 100%; border: 1px solid #cbd5e1; border-radius: 10px;
+      padding: 12px; font: inherit; font-size: 16px; min-height: 48px;
+    }
+    textarea { min-height: 80px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    button {
+      border: 0; border-radius: 10px; min-height: 44px; padding: 0 14px;
+      background: #16a34a; color: #fff; font-weight: 700; font-size: 15px; cursor: pointer;
+    }
+    button.full { width: 100%; min-height: 48px; font-size: 16px; }
+    button.secondary { background: #e2e8f0; color: #0f172a; }
+    button.danger { background: #fee2e2; color: #991b1b; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #msg, #listMsg { font-size: 14px; margin: 8px 0; min-height: 18px; }
+    .err { color: #b91c1c; } .ok { color: #15803d; }
+    .receta { border-top: 1px solid #e2e8f0; padding: 12px 0; }
+    .receta:first-child { border-top: 0; }
+    .head { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .num { font-weight: 800; }
+    .estado { border-radius: 8px; padding: 2px 8px; font-size: 12px; font-weight: 800; }
+    .e-borrador { background: #fef9c3; color: #854d0e; }
+    .e-emitida { background: #dcfce7; color: #166534; }
+    .e-anulada { background: #fee2e2; color: #991b1b; }
+    .meta { font-size: 13px; color: #475569; margin: 4px 0 8px; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .legal { font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div id="app-nav"></div>
+  <main>
+    <h1>Recetas agronomicas</h1>
+
+    <form id="form" class="card">
+      <h2>Nueva receta (borrador)</h2>
+      <label>Producto
+        <input id="producto" required />
+      </label>
+      <label>Principio activo
+        <input id="activo" />
+      </label>
+      <div class="row">
+        <label>Cultivo
+          <input id="cultivo" required />
+        </label>
+        <label>Lote
+          <input id="lote" />
+        </label>
+      </div>
+      <div class="row">
+        <label>Superficie (ha)
+          <input id="superficie" type="number" min="0" step="any" inputmode="decimal" />
+        </label>
+        <label>Dosis
+          <input id="dosis" required placeholder="Ej: 2.5 L/ha" />
+        </label>
+      </div>
+      <div class="row">
+        <label>Volumen de agua
+          <input id="agua" placeholder="Ej: 120 L/ha" />
+        </label>
+        <label>Fecha de aplicacion
+          <input id="fecha" type="date" />
+        </label>
+      </div>
+      <label>Observaciones
+        <textarea id="obs"></textarea>
+      </label>
+      <div id="msg"></div>
+      <button type="submit" id="crear" class="full">Generar receta y PDF</button>
+      <p class="legal">Documento generado por AgroAid. No reemplaza la firma de un profesional habilitado.</p>
+    </form>
+
+    <section class="card">
+      <div class="head">
+        <h2>Mis recetas</h2>
+        <button class="secondary" id="refrescar">Actualizar</button>
+      </div>
+      <div id="listMsg"></div>
+      <div id="lista"></div>
+      <div class="btns" style="margin-top:10px">
+        <button class="secondary" id="mas" style="display:none">Cargar mas</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/shared.js"></script>
+  <script>
+    AgroAid.renderNav("recetas");
+    const { authFetch, esc, errorText, downloadPdf } = AgroAid;
+    const $ = (id) => document.getElementById(id);
+    const PAGE_SIZE = 20;
+    let page = 1;
+
+    function setMsg(el, text, cls) { el.textContent = text; el.className = cls || ""; }
+
+    function renderReceta(r) {
+      const fecha = r.fecha_aplicacion ? String(r.fecha_aplicacion).slice(0, 10) : "-";
+      return (
+        '<div class="receta" data-id="' + esc(r.id) + '">' +
+        '<div class="head"><span class="num">' + esc(r.numero_receta) + "</span>" +
+        '<span class="estado e-' + esc(r.estado) + '">' + esc(r.estado) + "</span></div>" +
+        '<div class="meta">' + esc(r.producto) + " &middot; " + esc(r.cultivo) +
+        " &middot; " + esc(r.dosis) + " &middot; " + esc(fecha) + "</div>" +
+        '<div class="btns">' +
+        '<button data-act="pdf" data-num="' + esc(r.numero_receta) + '">PDF</button>' +
+        (r.estado === "borrador" ? '<button class="secondary" data-act="emitir">Emitir</button>' : "") +
+        (r.estado !== "anulada" ? '<button class="danger" data-act="anular">Anular</button>' : "") +
+        "</div></div>"
+      );
+    }
+
+    async function cargar(reset) {
+      if (reset) { page = 1; $("lista").innerHTML = ""; }
+      setMsg($("listMsg"), "Cargando...");
+      try {
+        const res = await authFetch("/api/recetas?page=" + page + "&page_size=" + PAGE_SIZE);
+        if (!res.ok) { setMsg($("listMsg"), await errorText(res), "err"); return; }
+        const items = await res.json();
+        $("lista").insertAdjacentHTML("beforeend", items.map(renderReceta).join(""));
+        $("mas").style.display = items.length === PAGE_SIZE ? "inline-block" : "none";
+        setMsg($("listMsg"), $("lista").children.length ? "" : "Todavia no hay recetas.");
+      } catch (e) {
+        setMsg($("listMsg"), "Error de conexion", "err");
+      }
+    }
+
+    $("refrescar").addEventListener("click", () => cargar(true));
+    $("mas").addEventListener("click", () => { page += 1; cargar(false); });
+
+    $("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const btn = $("crear");
+      btn.disabled = true;
+      setMsg($("msg"), "Generando...");
+      const val = (id) => $(id).value.trim() || null;
+      const body = {
+        producto: $("producto").value.trim(),
+        principio_activo: val("activo"),
+        cultivo: $("cultivo").value.trim(),
+        lote: val("lote"),
+        superficie_ha: $("superficie").value === "" ? null : Number($("superficie").value),
+        dosis: $("dosis").value.trim(),
+        volumen_agua: val("agua"),
+        fecha_aplicacion: $("fecha").value || null,
+        observaciones: val("obs"),
+      };
+      try {
+        const res = await authFetch("/api/recetas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) { setMsg($("msg"), await errorText(res), "err"); return; }
+        const r = await res.json();
+        setMsg($("msg"), "Receta " + r.numero_receta + " creada", "ok");
+        event.target.reset();
+        cargar(true);
+      } catch (e) {
+        setMsg($("msg"), "Error de conexion", "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    $("lista").addEventListener("click", async (event) => {
+      const btn = event.target.closest("button[data-act]");
+      if (!btn) return;
+      const id = btn.closest(".receta").dataset.id;
+      const act = btn.dataset.act;
+      btn.disabled = true;
+      try {
+        if (act === "pdf") {
+          await downloadPdf("/api/recetas/" + id + "/pdf", btn.dataset.num + ".pdf");
+        } else {
+          if (act === "anular" && !confirm("Anular esta receta?")) return;
+          const res = await authFetch("/api/recetas/" + id + "/" + act, { method: "PUT" });
+          if (!res.ok) {
+            const text = await errorText(res);
+            alert(res.status === 403 ? "Solo un administrador puede " + act + " recetas." : text);
+            return;
+          }
+          cargar(true);
+        }
+      } catch (e) {
+        alert("Error: " + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    cargar(true);
+  </script>
+</body>
+</html>

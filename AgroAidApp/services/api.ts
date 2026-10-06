@@ -53,7 +53,12 @@ export function configureTokenRefresh(handler: () => Promise<string | null>) {
   refreshAccessToken = handler;
 }
 
-function buildUrl(path: string) {
+export function getAuthHeaders(): Record<string, string> {
+  const token = getAccessToken?.();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function buildUrl(path: string) {
   if (/^https?:\/\//i.test(path)) {
     return path;
   }

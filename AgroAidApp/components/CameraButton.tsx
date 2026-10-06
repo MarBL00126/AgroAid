@@ -2,10 +2,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors } from '@/constants/colors';
-import { analizarEtiqueta, type ImagenConsultaResponse } from '@/services/imagen';
+import { analizarEtiqueta, type ImagenConsultaResult } from '@/services/imagen';
 type Props = {
   disabled?: boolean;
-  onResult: (result: ImagenConsultaResponse) => void;
+  onResult: (result: ImagenConsultaResult) => void;
   onError?: (message: string) => void;
 };
 export function CameraButton({ disabled, onResult, onError }: Props) {

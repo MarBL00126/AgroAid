@@ -31,8 +31,9 @@ _tenant_id = get_tenant_id_from_user
 _user_id = get_user_id_from_user
 _tenant_slug = get_tenant_slug_from_user
 def _next_numero_receta(cur) -> tuple[int, str]:
-    cur.execute("SELECT nextval('recetas_agronomicas_id_seq')")
-    receta_id = int(cur.fetchone()[0])
+    cur.execute("SELECT nextval('recetas_agronomicas_id_seq') AS id")
+    row = cur.fetchone()
+    receta_id = int(row["id"] if isinstance(row, dict) else row[0])
     numero = f"RA-{date.today().year}-{receta_id:06d}"
     return receta_id, numero
 def _insert_receta(

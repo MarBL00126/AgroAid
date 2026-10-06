@@ -6,7 +6,12 @@ from core.database import (
     db_execute_returning_one_async,
     db_fetch_all_async,
 )
-from core.deps import get_tenant_id_from_user, get_user_id_from_user, require_any
+from core.deps import (
+    get_tenant_id_from_user,
+    get_user_id_from_user,
+    require_admin,
+    require_any,
+)
 from core.webhook import dispatch_webhook
 
 router = APIRouter(prefix="/api/mapa", tags=["Mapa fitosanitario"])
@@ -110,7 +115,7 @@ async def listar_eventos(
 @router.put("/eventos/{evento_id}/verificar")
 async def verificar_evento(
     evento_id:int,
-    current_user: dict = Depends(require_any),
+    current_user: dict = Depends(require_admin),
 ):
     tenant_id=_tenant_id(current_user)
     evento = await db_execute_returning_one_async(

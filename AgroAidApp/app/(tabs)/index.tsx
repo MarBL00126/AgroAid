@@ -16,7 +16,7 @@ import { RespuestaInput } from '@/components/RespuestaInput';
 import { colors } from '@/constants/colors';
 import { useConsulta } from '@/hooks/useConsulta';
 import { useLocation } from '@/hooks/useLocation';
-import type { ImagenConsultaResponse } from '@/services/imagen';
+import type { ImagenConsultaResult } from '@/services/imagen';
 import type { ConsultaResponse } from '@/services/consultas';
 
 export default function ConsultaTab() {
@@ -56,7 +56,7 @@ export default function ConsultaTab() {
     setMediaError(null);
     await cargar(result.consulta_id);
   }
-  async function handleImagenResult(result: ImagenConsultaResponse) {
+  async function handleImagenResult(result: ImagenConsultaResult) {
     setMediaError(null);
     setTexto(result.consulta_generada);
     await cargar(result.evaluacion.consulta_id);

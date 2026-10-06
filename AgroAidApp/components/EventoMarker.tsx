@@ -6,12 +6,10 @@ import { colors } from '@/constants/colors';
 import type { EventoMapa, EventoTipo } from '@/services/mapa';
 
 const icons: Record<EventoTipo, keyof typeof Ionicons.glyphMap> = {
-  agua: 'water-outline',
-  clima: 'thunderstorm-outline',
   enfermedad: 'medkit-outline',
   incendio: 'flame-outline',
-  otro: 'alert-circle-outline',
-  plaga: 'bug-outline'
+  plaga: 'bug-outline',
+  contaminacion: 'warning-outline'
 };
 
 export function EventoMarker({ evento }: { evento: EventoMapa }) {
@@ -26,12 +24,17 @@ export function EventoMarker({ evento }: { evento: EventoMapa }) {
       </View>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>{evento.titulo}</Text>
-          <RiesgoChip nivel={evento.riesgo} />
+          <Text style={styles.title}>{evento.tipo}</Text>
+          <RiesgoChip nivel={evento.nivel_riesgo || 'MEDIO'} />
         </View>
-        <Text style={styles.description}>{evento.descripcion}</Text>
+        <Text style={styles.description}>
+          {evento.descripcion || 'Sin descripcion.'}
+        </Text>
         <Text style={styles.meta}>
           {evento.lat.toFixed(3)}, {evento.lon.toFixed(3)}
+          {evento.distancia_km != null
+            ? ` - ${Number(evento.distancia_km).toFixed(1)} km`
+            : ''}
         </Text>
       </View>
     </View>

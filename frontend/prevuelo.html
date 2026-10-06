@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#16a34a" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <title>AgroAid - Pre-aplicacion GO/NO-GO</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f1f5f9; color: #0f172a; }
+    main { max-width: 640px; margin: 0 auto; padding: 14px; }
+    h1 { font-size: 20px; margin: 6px 0 12px; color: #14532d; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+    label { display: grid; gap: 5px; margin: 10px 0; font-size: 13px; font-weight: 700; }
+    input, select {
+      width: 100%; border: 1px solid #cbd5e1; border-radius: 10px;
+      padding: 12px; font: inherit; font-size: 16px; min-height: 48px; background: #fff;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .epp { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .epp label {
+      display: flex; align-items: center; gap: 6px; margin: 0; padding: 0 12px;
+      min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; font-weight: 600;
+    }
+    .epp input { width: 20px; min-height: 20px; padding: 0; }
+    button {
+      border: 0; border-radius: 10px; min-height: 48px; padding: 0 16px;
+      background: #16a34a; color: #fff; font-weight: 700; font-size: 16px; cursor: pointer; width: 100%;
+    }
+    button.secondary { background: #e2e8f0; color: #0f172a; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .banner { border-radius: 14px; padding: 18px; text-align: center; color: #fff; margin-bottom: 12px; }
+    .banner b { font-size: 32px; display: block; }
+    .go { background: #16a34a; } .nogo { background: #dc2626; }
+    .check { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid #e2e8f0; font-size: 14px; }
+    .tag { flex: none; min-width: 92px; text-align: center; border-radius: 8px; padding: 2px 6px; font-weight: 800; font-size: 12px; align-self: flex-start; }
+    .t-GO { background: #dcfce7; color: #166534; }
+    .t-NO-GO { background: #fee2e2; color: #991b1b; }
+    .t-PRECAUCION { background: #fef9c3; color: #854d0e; }
+    #msg { font-size: 14px; margin: 8px 0; min-height: 18px; }
+    .err { color: #b91c1c; }
+    small { color: #475569; }
+  </style>
+</head>
+<body>
+  <div id="app-nav"></div>
+  <main>
+    <h1>Chequeo pre-aplicacion</h1>
+
+    <form id="form" class="card">
+      <label>Producto
+        <input id="producto" required placeholder="Ej: Glifosato 48%" />
+      </label>
+      <div class="row">
+        <label>Cultivo
+          <input id="cultivo" placeholder="Ej: soja" />
+        </label>
+        <label>Dosis (L/ha)
+          <input id="dosis" type="number" min="0" step="0.1" inputmode="decimal" />
+        </label>
+      </div>
+      <div class="row">
+        <label>Distancia al agua (m)
+          <input id="agua" type="number" min="0" step="1" required inputmode="numeric" />
+        </label>
+        <label>Equipo
+          <select id="equipo">
+            <option value="terrestre">Terrestre</option>
+            <option value="drone">Drone</option>
+            <option value="aereo">Aereo</option>
+          </select>
+        </label>
+      </div>
+      <label>Hora de aplicacion (opcional)
+        <input id="hora" type="datetime-local" />
+      </label>
+
+      <div>
+        <strong style="font-size:13px">EPP disponible</strong>
+        <div class="epp">
+          <label><input type="checkbox" value="guantes" /> Guantes</label>
+          <label><input type="checkbox" value="mascara" /> Mascara</label>
+          <label><input type="checkbox" value="antiparras" /> Antiparras</label>
+          <label><input type="checkbox" value="botas" /> Botas</label>
+          <label><input type="checkbox" value="traje" /> Traje</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Latitud
+          <input id="lat" type="number" step="any" required inputmode="decimal" />
+        </label>
+        <label>Longitud
+          <input id="lon" type="number" step="any" required inputmode="decimal" />
+        </label>
+      </div>
+      <button type="button" class="secondary" id="gps">Usar mi ubicacion</button>
+      <div id="msg"></div>
+      <button type="submit" id="enviar">Evaluar GO / NO-GO</button>
+    </form>
+
+    <section id="resultado" style="display:none">
+      <div id="banner" class="banner"></div>
+      <div class="card">
+        <div id="checks"></div>
+        <p id="reco" style="font-weight:700"></p>
+        <small id="clima"></small>
+        <div style="margin-top:12px"><button id="pdf" class="secondary">Descargar PDF</button></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/shared.js"></script>
+  <script>
+    AgroAid.renderNav("prevuelo");
+    const { authFetch, esc, errorText, downloadPdf } = AgroAid;
+    const $ = (id) => document.getElementById(id);
+    let pdfUrl = null;
+    let pdfName = "pre_aplicacion.pdf";
+
+    function setMsg(text, cls) { $("msg").textContent = text; $("msg").className = cls || ""; }
+
+    $("gps").addEventListener("click", () => {
+      if (!navigator.geolocation) { setMsg("Tu navegador no soporta geolocalizacion", "err"); return; }
+      setMsg("Obteniendo ubicacion...");
+      navigator.geolocation.getCurrentPosition(
+        (p) => { $("lat").value = p.coords.latitude.toFixed(6); $("lon").value = p.coords.longitude.toFixed(6); setMsg(""); },
+        () => setMsg("No se pudo obtener la ubicacion. Ingresala a mano.", "err")
+      );
+    });
+
+    $("form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const btn = $("enviar");
+      btn.disabled = true;
+      setMsg("Consultando clima y evaluando...");
+      const body = {
+        lat: Number($("lat").value),
+        lon: Number($("lon").value),
+        producto: $("producto").value.trim(),
+        cultivo: $("cultivo").value.trim() || null,
+        dosis_l_ha: $("dosis").value === "" ? null : Number($("dosis").value),
+        distancia_agua_m: Number($("agua").value),
+        tipo_equipo: $("equipo").value,
+        hora_aplicacion: $("hora").value ? new Date($("hora").value).toISOString() : null,
+        epp_disponible: [...document.querySelectorAll(".epp input:checked")].map((c) => c.value),
+      };
+      try {
+        const res = await authFetch("/api/pre-aplicacion", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) { setMsg(await errorText(res), "err"); return; }
+        mostrar(await res.json());
+        setMsg("");
+      } catch (e) {
+        setMsg("Error de conexion", "err");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    function mostrar(data) {
+      const ev = data.evaluacion || {};
+      const go = ev.resultado_global === "GO";
+      $("banner").className = "banner " + (go ? "go" : "nogo");
+      $("banner").innerHTML = "<b>" + esc(ev.resultado_global || "?") + "</b>" + esc(ev.recomendacion || "");
+      $("checks").innerHTML = (ev.checks || []).map((c) =>
+        '<div class="check"><span class="tag t-' + esc(c.resultado) + '">' + esc(c.resultado) +
+        "</span><span><strong>" + esc(c.check) + "</strong><br>" + esc(c.detalle) + "</span></div>"
+      ).join("");
+      $("reco").textContent = "";
+      const cl = ev.clima || {};
+      $("clima").textContent = "Clima: " + (cl.temperature ?? "-") + " C, viento " + (cl.wind ?? "-") +
+        " km/h, lluvia " + (cl.rain ?? "-") + " mm";
+      const reg = data.registro || {};
+      pdfUrl = reg.pdf_url || null;
+      pdfName = "pre_aplicacion_" + (reg.id ?? "") + ".pdf";
+      $("pdf").style.display = pdfUrl ? "block" : "none";
+      $("resultado").style.display = "block";
+      $("resultado").scrollIntoView({ behavior: "smooth" });
+    }
+
+    $("pdf").addEventListener("click", async () => {
+      if (!pdfUrl) return;
+      try { await downloadPdf(pdfUrl, pdfName); }
+      catch (e) { alert("No se pudo descargar el PDF: " + e.message); }
+    });
+  </script>
+</body>
+</html>
